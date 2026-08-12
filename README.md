@@ -117,3 +117,25 @@ Use **Expo Go** while you're building. Pay the $99 and switch to **EAS preview b
 - **New API call:** add a function to `src/api/`, wrap it in a hook in `src/hooks/`.
 - **Restyle:** edit `src/theme.ts` only.
 - **Native module:** `npx expo install <package>` — use `expo install`, not `npm install`, so versions stay compatible with the SDK. If it isn't in Expo Go, move to a development build (Option 2).
+
+---
+
+## Troubleshooting
+
+### `npm audit` reports vulnerabilities
+
+**Do not run `npm audit fix --force`.** It "resolves" them by downgrading Expo 57 → 53 and React Native 0.86 → 0.72, which breaks the project.
+
+`.npmrc` sets `audit=false`, which suppresses the vulnerability banner printed after `npm install`. It does not hide anything — running `npm audit` manually still gives the complete, unfiltered report. Delete that line if you'd rather see the banner.
+
+The remaining advisories all trace to a single package, `image-size`, pulled in by the Metro bundler. There is no patched release — the advisory covers every published version including the latest. It is a denial-of-service in image parsing that can only trigger while bundling on your own machine, and it never ships inside the app binary.
+
+`uuid` (via `xcode`, used for generating iOS project files) *was* fixable and is pinned to `^11.1.1` in `overrides`.
+
+### `ERESOLVE` on `npm install`
+
+`react-dom` is pinned to `19.2.3` in `overrides` because `expo-router`'s web dependencies otherwise float it to a version requiring a newer React than Expo SDK 57 allows. Don't use `--legacy-peer-deps` to work around this — it leaves a mismatched React renderer that fails at runtime instead of install time.
+
+### Adding dependencies
+
+Use `npx expo install <package>`, not `npm install`, so versions stay pinned to what the SDK supports. Run `npm run doctor` afterwards to confirm.
