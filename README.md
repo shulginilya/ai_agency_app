@@ -1,6 +1,6 @@
 # ai_agency_app — React Native (Expo) boilerplate
 
-Expo SDK 57 · React Native 0.86 · TypeScript (strict) · expo-router
+Expo SDK 54 · React Native 0.81 · TypeScript (strict) · expo-router
 
 ## Demo functionality
 
@@ -64,6 +64,8 @@ Phone and PC must be on the same Wi-Fi. If your network blocks it (corporate Wi-
 - **Good for:** all development on this boilerplate — every library here works in Expo Go
 - **Limits:** it's not *your* app. No custom icon on the home screen, no custom native modules, and you can't hand it to someone who doesn't have Expo Go. Runs only while your dev server is up.
 
+> **Why SDK 54 and not the newest?** Apple has not approved a newer Expo Go build for the App Store since SDK 54 — Expo confirmed SDK 55 was still pending review in May 2026, and SDK 57 shipped with the same caveat. On SDK 55+ the App Store Expo Go returns *"Project is incompatible with this version of Expo Go."* Newer SDKs are only reachable on iOS via `eas go` or a development build, both of which need a paid Apple Developer account. Staying on SDK 54 keeps this option free. See [expo.dev/go](https://expo.dev/go).
+
 ## Option 2 — EAS development / preview build (a real app on your phone)
 
 Expo builds the actual `.ipa` on their Macs in the cloud. You never need a Mac.
@@ -124,17 +126,19 @@ Use **Expo Go** while you're building. Pay the $99 and switch to **EAS preview b
 
 ### `npm audit` reports vulnerabilities
 
-**Do not run `npm audit fix --force`.** It "resolves" them by downgrading Expo 57 → 53 and React Native 0.86 → 0.72, which breaks the project.
+**Do not run `npm audit fix --force`.** It "resolves" them by downgrading Expo several major versions, which breaks the project.
 
 `.npmrc` sets `audit=false`, which suppresses the vulnerability banner printed after `npm install`. It does not hide anything — running `npm audit` manually still gives the complete, unfiltered report. Delete that line if you'd rather see the banner.
 
-The remaining advisories all trace to a single package, `image-size`, pulled in by the Metro bundler. There is no patched release — the advisory covers every published version including the latest. It is a denial-of-service in image parsing that can only trigger while bundling on your own machine, and it never ships inside the app binary.
+The remaining advisories trace to build tooling under the Metro bundler. There is no patched release — the advisory covers every published version including the latest. It is a denial-of-service in image parsing that can only trigger while bundling on your own machine, and it never ships inside the app binary.
 
-`uuid` (via `xcode`, used for generating iOS project files) *was* fixable and is pinned to `^11.1.1` in `overrides`.
+### `Unable to resolve "react-native-web/dist/index"` on `npm run web`
 
-### `ERESOLVE` on `npm install`
+Web support needs three packages that aren't part of the native build: `react-dom`, `react-native-web`, and `@expo/metro-runtime`. They're in `dependencies`. If you don't care about the web target you can remove all three — `npm start` / iOS / Android are unaffected.
 
-`react-dom` is pinned to `19.2.3` in `overrides` because `expo-router`'s web dependencies otherwise float it to a version requiring a newer React than Expo SDK 57 allows. Don't use `--legacy-peer-deps` to work around this — it leaves a mismatched React renderer that fails at runtime instead of install time.
+### Upgrading the SDK later
+
+Once Apple approves a newer Expo Go, `npx expo install expo@latest --fix` moves the whole project forward. Until then, staying on SDK 54 is what keeps the free Expo Go path working.
 
 ### Adding dependencies
 
