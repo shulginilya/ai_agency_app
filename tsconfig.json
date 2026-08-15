@@ -2,9 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "types": ["jest", "node"],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  // Cypress specs have their own tsconfig: their `expect` is Chai, not Jest, and
+  // mixing the two global type sets produces nonsense errors in both.
+  "exclude": ["node_modules", "cypress", "cypress.config.ts", "dist", ".expo"]
 }
