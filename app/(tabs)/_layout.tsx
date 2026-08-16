@@ -27,6 +27,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="cloud-download-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="agents"
+        options={{
+          title: 'Agents',
+          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

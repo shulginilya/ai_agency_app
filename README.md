@@ -4,31 +4,59 @@ Expo SDK 54 · React Native 0.81 · TypeScript (strict) · expo-router
 
 ## Demo functionality
 
-Two tabs, deliberately covering the four things almost every app needs:
+Three tabs, deliberately covering the things almost every app needs:
 
 | Tab | Shows off |
 |---|---|
 | **Tasks** | Local state, list rendering, text input, filtering, and **persistence** — tasks are saved to device storage and survive an app restart. |
 | **Feed** | **Networking** — fetches from a public REST API with loading / error / empty states and pull-to-refresh. |
+| **Agents** | **The agent control plane** — calls your own API (`/healthz`, `/readyz`), shows each call's verdict, latency and raw body, polls every 10s, and logs every request it made. |
 
-Both screens are light/dark aware and follow the OS appearance setting.
+All screens are light/dark aware and follow the OS appearance setting.
+
+## Agent control plane
+
+The Agents tab is the proof of concept for driving your agents from the app. It
+talks to the API on `localhost:8000` through a typed client that handles
+timeouts, bounded retries, bearer auth and schema validation in one place — so
+each endpoint you add next is a path, a zod schema and a one-line call.
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000   # your API
+npm run web                                    # then open the Agents tab
+```
+
+Point it elsewhere with `EXPO_PUBLIC_API_URL` (see `.env.example`). Left unset,
+the app resolves the host itself: `10.0.2.2` on the Android emulator, Metro's LAN
+IP on a physical phone, `localhost` otherwise — the two mistakes that otherwise
+cost an afternoon. Running in a **browser** additionally needs CORS enabled on
+the API.
+
+Architecture, how to add an endpoint, the design decisions and the device/CORS
+matrix: **[docs/control-plane.md](docs/control-plane.md)**.
 
 ## Project layout
 
 ```
 app/                    # expo-router: every file here is a route
-  _layout.tsx           # root stack + providers
+  _layout.tsx           # root stack + providers (React Query lives here)
   (tabs)/_layout.tsx    # bottom tab bar
   (tabs)/index.tsx      # Tasks screen
   (tabs)/feed.tsx       # Feed screen
+  (tabs)/agents.tsx     # Agents / control plane screen
   +not-found.tsx        # 404 route
 src/
-  api/products.ts       # network layer — swap BASE_URL for your own API
+  api/                  # http client, config, errors, schemas, endpoints
   components/           # presentational components
-  hooks/                # useTasks (state + persistence), useProducts (fetching)
+  hooks/                # useSystemStatus, useAgents, useTasks, useProducts
+  query/                # React Query client, provider, cache keys
   storage/tasks.ts      # AsyncStorage read/write
+  test-utils/           # fetch doubles + render helpers (test-only)
   theme.ts              # colors, spacing, radii — one place to restyle
   types.ts
+cypress/                # end-to-end specs, run against the web build
+tools/mock-agent-api.mjs# zero-dependency stub of the control API, for e2e
+docs/control-plane.md   # the API layer in detail
 app.json                # app name, icons, bundle id, plugins
 eas.json                # cloud build profiles
 ```
@@ -43,6 +71,19 @@ npm start
 ```
 
 Scripts: `npm start` · `npm run ios` · `npm run android` · `npm run web` · `npm run tunnel` · `npm run typecheck` · `npm run doctor`
+
+## Tests
+
+```bash
+npm test                # Jest unit + integration (101 tests)
+npm run test:coverage   # same, with coverage thresholds enforced
+npm run e2e             # Cypress against the Expo web build + the stub API
+npm run verify          # typecheck + coverage + e2e — what CI should run
+```
+
+`npm run e2e` boots `tools/mock-agent-api.mjs`, a zero-dependency stand-in for
+your API that can be told to fail on demand, so the browser suite also covers the
+degraded, offline and slow paths — no FastAPI process required.
 
 ---
 

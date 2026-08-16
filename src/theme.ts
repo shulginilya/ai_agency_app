@@ -14,6 +14,7 @@ const palette = {
     accent: '#2563EB',
     danger: '#DC2626',
     success: '#059669',
+    warning: '#B45309',
   },
   dark: {
     background: '#0B1220',
@@ -24,6 +25,7 @@ const palette = {
     accent: '#60A5FA',
     danger: '#F87171',
     success: '#34D399',
+    warning: '#FBBF24',
   },
 };
 
