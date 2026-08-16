@@ -7,12 +7,16 @@ next twenty is a three-line change each.
 ## The shape of it
 
 ```
-app/(tabs)/agents.tsx      Screen: status, probes, agents, request log
+app/(tabs)/agents.tsx      Screen: status, probes, agent list, request log
+app/agent/[id].tsx         Route wrapper — reads the id, mounts the screen
         │
-src/hooks/                 useSystemStatus, useAgents  (React Query)
+src/screens/AgentChat.tsx  Screen: one agent — thread, composer, controls
+        │
+src/hooks/                 useSystemStatus, useAgents, useMessages (React Query)
         │
 src/api/system.ts          Endpoint modules: a path, a schema, one call
 src/api/agents.ts
+src/api/messages.ts
         │
 src/api/http.ts            HttpClient: timeouts, retries, auth, validation
 src/api/client.ts          The app-wide instance
@@ -44,6 +48,60 @@ export function useRuns() {
 ```
 
 Add the key to `src/query/keys.ts`, and a test next to the others. That's it.
+
+## Talking to an agent
+
+Tapping an agent on the control screen opens `app/agent/[id].tsx`: a thread, a
+composer, and the start/pause/stop controls in the header. It runs on two
+endpoints the server does not have yet — `tools/mock-agent-api.mjs` implements
+them, so the screen is fully clickable today and the FastAPI side only has to
+match these shapes.
+
+```http
+GET /agents/{id}/messages?after=<message id>&limit=<n>
+200 { "messages": [ Message, … ] }        # a bare [ … ] is accepted too
+
+POST /agents/{id}/messages
+    { "content": "summarise the leads" }
+202 { "message": Message }                # a bare Message is accepted too
+```
+
+```jsonc
+// Message
+{
+  "id": "m1",
+  "agent_id": "a1",
+  "role": "user",            // user · agent · system
+  "content": "summarise the leads",
+  "created_at": "2026-08-16T09:00:00Z",   // required: the thread is ordered by it
+  "pending": true                          // optional: still being produced
+}
+```
+
+**The POST answers with your message, not with the reply.** `202 Accepted` means
+the work is queued; the answer turns up in a later `GET`. That split is what
+makes the round trip pollable without any streaming machinery, and it is the
+shape a queue-backed agent wants anyway — accepting work and finishing work are
+different moments, and only one of them is fast.
+
+**Polling is conditional.** `useMessages` asks one question — is an answer
+outstanding? — and only then sets a `refetchInterval` (1.5s). Outstanding means
+either the server flagged a message `pending`, or the last thing in the thread is
+something you said. An idle thread makes no requests at all. After 60 seconds
+with no answer it stops and says so rather than spinning forever, with a "check
+again" that starts the wait over.
+
+**Sending is optimistic, and rolls back.** Your bubble appears before the network
+answers, because a chat that waits for a round trip to echo your own words feels
+broken. If the POST fails, the optimistic message is removed rather than left
+lying about having been delivered, and the screen puts your text back in the
+composer. `POST` is never auto-retried by `HttpClient` — a duplicate instruction
+to an agent is worse than a failed one.
+
+**`role: "system"` is the control plane narrating itself.** Pausing an agent
+writes "…was paused" into the same thread, so one surface holds both what was
+said to the agent and what happened to it. If your API would rather keep events
+separate, just never emit the role — the client renders whatever it is given.
 
 ## Decisions worth knowing about
 
@@ -119,11 +177,11 @@ production over the public internet should be HTTPS.
 |---|---|---|
 | Transport | `src/api/__tests__/http.test.ts` | timeouts, abort, backoff, auth header, error taxonomy, logging |
 | Config | `src/api/__tests__/config.test.ts` | base URL per platform and host |
-| Endpoints | `src/api/__tests__/{system,agents}.test.ts` | probe verdicts, schema strictness, both list shapes |
-| Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, polling, invalidation |
-| Components | `src/components/__tests__/*` | probe card states, log rows |
-| Screen | `__tests__/agents-screen.test.tsx` | the whole thing with only `fetch` stubbed |
-| Browser | `cypress/e2e/control-plane.cy.ts` | real bundle, real HTTP, real polling |
+| Endpoints | `src/api/__tests__/{system,agents,messages}.test.ts` | probe verdicts, schema strictness, both list shapes |
+| Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, conditional polling, optimistic send + rollback |
+| Components | `src/components/__tests__/*` | probe card states, log rows, message bubbles |
+| Screens | `__tests__/{agents-screen,agent-chat}.test.tsx` | the whole thing with only `fetch` stubbed |
+| Browser | `cypress/e2e/{control-plane,agent-chat}.cy.ts` | real bundle, real HTTP, a reply arriving by itself |
 
 `npm test` · `npm run test:coverage` · `npm run e2e` · `npm run verify`
 
@@ -131,9 +189,12 @@ The e2e run starts `tools/mock-agent-api.mjs` (zero dependencies) rather than
 your FastAPI, so the suite can force failure modes on demand:
 
 ```bash
-curl -X POST localhost:8000/__control__ -d '{"readyz":"fail"}'    # readiness down
-curl -X POST localhost:8000/__control__ -d '{"agents":"enabled"}' # /agents starts existing
-curl -X POST localhost:8000/__control__ -d '{"latencyMs":1200}'   # slow API
+curl -X POST localhost:8000/__control__ -d '{"readyz":"fail"}'      # readiness down
+curl -X POST localhost:8000/__control__ -d '{"agents":"enabled"}'   # /agents starts existing
+curl -X POST localhost:8000/__control__ -d '{"messages":"missing"}' # the chat endpoints 404
+curl -X POST localhost:8000/__control__ -d '{"send":"fail"}'        # sending answers 500
+curl -X POST localhost:8000/__control__ -d '{"replyDelayMs":5000}'  # a slow agent
+curl -X POST localhost:8000/__control__ -d '{"latencyMs":1200}'     # slow API
 curl -X POST localhost:8000/__control__ -d '{"reset":true}'
 ```
 

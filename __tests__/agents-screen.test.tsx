@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import AgentsScreen from '../app/(tabs)/agents';
 import { requestLog } from '@/api/log';
 import { fakeResponse } from '@/test-utils/http';
@@ -90,6 +91,19 @@ describe('Agents control screen', () => {
 
     await waitFor(() => expect(screen.getByTestId('agent-row-a1')).toBeTruthy());
     expect(screen.getByTestId('agent-status-a1')).toHaveTextContent('running');
+  });
+
+  it('opens the chat for the agent you tap', async () => {
+    stubApi({
+      ...HEALTHY,
+      '/agents': () => fakeResponse({ body: [{ id: 'a 1', name: 'Research agent', status: 'running' }] }),
+    });
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('agent-row-a 1')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('agent-row-a 1'));
+
+    expect(router.push).toHaveBeenCalledWith('/agent/a%201');
   });
 
   it('re-runs the probes when "Run checks" is pressed', async () => {

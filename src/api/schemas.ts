@@ -38,13 +38,21 @@ export const AgentSchema = z.object({
 });
 export type Agent = z.infer<typeof AgentSchema>;
 
-/** Unwraps `{"agents": [...]}` so both that and a bare `[...]` validate identically. */
-export function unwrapAgentList(value: unknown): unknown {
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'agents' in value) {
-    return (value as { agents: unknown }).agents;
-  }
-  return value;
+/**
+ * Unwraps `{"<key>": …}` so an envelope and a bare payload validate identically.
+ * Every collection endpoint on this API is allowed to use either shape.
+ */
+function unwrapEnvelope(key: string) {
+  return (value: unknown): unknown => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && key in value) {
+      return (value as Record<string, unknown>)[key];
+    }
+    return value;
+  };
 }
+
+/** Unwraps `{"agents": [...]}` so both that and a bare `[...]` validate identically. */
+export const unwrapAgentList = unwrapEnvelope('agents');
 
 /**
  * Accepts both `[...]` and `{"agents": [...]}` because the endpoint does not
@@ -56,3 +64,38 @@ export function unwrapAgentList(value: unknown): unknown {
  * useless top-level "invalid input".
  */
 export const AgentListResponseSchema = z.preprocess(unwrapAgentList, z.array(AgentSchema));
+
+/* ---------------------------------------------------------------- messages */
+
+/**
+ * `user` is you, typing into the composer. `agent` is the reply. `system` is the
+ * control plane narrating itself — "agent paused", "run failed" — so operational
+ * events can share the thread instead of needing a second surface.
+ */
+export const MESSAGE_ROLES = ['user', 'agent', 'system'] as const;
+export const MessageRoleSchema = z.enum(MESSAGE_ROLES);
+export type MessageRole = z.infer<typeof MessageRoleSchema>;
+
+export const MessageSchema = z.object({
+  id: z.string().min(1),
+  agent_id: z.string().min(1),
+  role: MessageRoleSchema,
+  content: z.string(),
+  /** ISO-8601. Required — the thread is ordered by it, so it is not optional. */
+  created_at: z.string().min(1),
+  /**
+   * Set by the server on a message it has accepted but not finished producing.
+   * The client polls while any message carries it.
+   */
+  pending: z.boolean().optional(),
+});
+export type Message = z.infer<typeof MessageSchema>;
+
+export const unwrapMessageList = unwrapEnvelope('messages');
+export const unwrapMessage = unwrapEnvelope('message');
+
+/** Accepts `[...]` and `{"messages": [...]}`, same deal as the agent list. */
+export const MessageListResponseSchema = z.preprocess(unwrapMessageList, z.array(MessageSchema));
+
+/** `POST /agents/{id}/messages` answers with the accepted message, enveloped or not. */
+export const SendMessageResponseSchema = z.preprocess(unwrapMessage, MessageSchema);
