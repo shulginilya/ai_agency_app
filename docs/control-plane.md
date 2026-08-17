@@ -56,6 +56,22 @@ export function useRuns() {
 
 Add the key to `src/query/keys.ts`, and a test next to the others. That's it.
 
+## Looking at the screen before the route serves anything
+
+*Temporary.* `EXPO_PUBLIC_MOCK_AGENTS=1` in `.env` makes `listAgents`, `getAgent`
+and `commandAgent` answer from `src/api/fixtures/agents.ts` — six agents, one per
+status — instead of calling `/v1/agents`. Restart Metro after changing it; Expo
+inlines `EXPO_PUBLIC_*` at bundle time. Start/pause/stop really do move a row, so
+the screen is worth clicking rather than being a screenshot; the state resets on
+reload. No request is made, so mocked calls do not appear in the request log.
+
+Unset — the default, and what every test run and CI sees — none of it is
+reachable. To remove it for good: delete the fixtures file and the three
+`if (MOCK_AGENTS_ENABLED)` early returns in `src/api/agents.ts`.
+
+The message thread is not mocked, so tapping into a chat shows the "no messaging
+endpoint yet" notice unless `tools/mock-agent-api.mjs` is running.
+
 ## Talking to an agent
 
 Tapping an agent on the control screen opens `app/agent/[id].tsx`: a thread, a

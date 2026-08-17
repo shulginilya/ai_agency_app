@@ -1,4 +1,10 @@
 import { apiClient } from '@/api/client';
+import {
+  MOCK_AGENTS_ENABLED,
+  mockCommandAgent,
+  mockGetAgent,
+  mockListAgents,
+} from '@/api/fixtures/agents';
 import type { HttpClient } from '@/api/http';
 import { AgentListResponseSchema, AgentSchema, type Agent, type AgentStatus } from '@/api/schemas';
 
@@ -27,11 +33,15 @@ export type AgentsApiOptions = {
 };
 
 export async function listAgents({ client = apiClient, signal }: AgentsApiOptions = {}): Promise<Agent[]> {
+  // TEMPORARY: see src/api/fixtures/agents.ts. Off unless EXPO_PUBLIC_MOCK_AGENTS=1.
+  // No request is made, so mocked calls do not show up in the request log either.
+  if (MOCK_AGENTS_ENABLED) return mockListAgents();
   const { data } = await client.get(AGENTS_PATH, { schema: AgentListResponseSchema, signal });
   return data;
 }
 
 export async function getAgent(id: string, { client = apiClient, signal }: AgentsApiOptions = {}): Promise<Agent> {
+  if (MOCK_AGENTS_ENABLED) return mockGetAgent(id);
   const { data } = await client.get(agentPath(id), { schema: AgentSchema, signal });
   return data;
 }
@@ -44,6 +54,7 @@ export async function commandAgent(
   command: AgentCommand,
   { client = apiClient, signal }: AgentsApiOptions = {},
 ): Promise<Agent> {
+  if (MOCK_AGENTS_ENABLED) return mockCommandAgent(id, command);
   const { data } = await client.post(agentPath(id, command), undefined, {
     schema: AgentSchema,
     signal,
