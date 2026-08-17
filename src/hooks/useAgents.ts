@@ -2,10 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { commandAgent, getAgent, listAgents, type Agent, type AgentCommand } from '@/api/agents';
 import { qk } from '@/query/keys';
 
-/**
- * `/agents` is not implemented server-side yet. The hook is written as if it
- * were: when the endpoint ships, the screen lights up with zero changes here.
- */
+/** The agent list, straight from `GET /v1/agents`. */
 export function useAgents({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: qk.agents(),
@@ -19,8 +16,8 @@ export function useAgents({ enabled = true }: { enabled?: boolean } = {}) {
  *
  * Seeded from the list you just tapped through, so the name and status are on
  * screen in the first frame instead of after a round trip — and if `GET
- * /agents/{id}` turns out not to exist, that seed is still what you see rather
- * than an empty header.
+ * /v1/agents/{id}` turns out not to exist, that seed is still what you see
+ * rather than an empty header.
  */
 export function useAgent(id: string) {
   const queryClient = useQueryClient();

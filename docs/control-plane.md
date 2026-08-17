@@ -1,8 +1,15 @@
 # Agent control plane — how the API layer works
 
 Proof of concept for driving agents from the app. Today the API exposes two
-endpoints (`/healthz`, `/readyz`); the point of this layer is that adding the
-next twenty is a three-line change each.
+health checks (`/healthz`, `/readyz`) and the first versioned data route,
+`/v1/agents`; the point of this layer is that adding the next twenty is a
+three-line change each.
+
+Every agent route lives under `/v1/agents` — list, detail, commands and the
+message thread. The version prefix lives in the path (`AGENTS_PATH` /
+`agentPath()` in `src/api/agents.ts`) and nowhere else: not in the base URL, not
+in a per-call option, so a `/v2` route can sit beside a `/v1` one without a flag
+day.
 
 ## The shape of it
 
@@ -58,10 +65,10 @@ them, so the screen is fully clickable today and the FastAPI side only has to
 match these shapes.
 
 ```http
-GET /agents/{id}/messages?after=<message id>&limit=<n>
+GET /v1/agents/{id}/messages?after=<message id>&limit=<n>
 200 { "messages": [ Message, … ] }        # a bare [ … ] is accepted too
 
-POST /agents/{id}/messages
+POST /v1/agents/{id}/messages
     { "content": "summarise the leads" }
 202 { "message": Message }                # a bare Message is accepted too
 ```
@@ -112,9 +119,13 @@ than caching a bogus verdict. Everything else in the API layer throws normally.
 
 **The HTTP status is the probe's answer.** That is the Kubernetes convention for
 `/healthz` and `/readyz`: 2xx means pass, anything else means fail, and the body
-is a bonus. So `ProbeBodySchema` is permissive — unknown fields are kept, an
-empty body is legal. Every other schema is strict: a shape change raises a
-`validation` error instead of rendering `undefined` three screens later.
+is a bonus. `PROBES` (`src/api/system.ts`) is not *limited* to health-check-shaped
+routes — `ProbeBodySchema` accepts anything: an object, a list, nothing — but
+data endpoints stay out of it. `/v1/agents` is fetched by `useAgents` and the
+list on the screen already says whether that call worked; probing it as well
+would double the traffic to answer the same question twice. Every other schema
+is strict: a shape change raises a `validation` error instead of rendering
+`undefined` three screens later.
 
 **Retries live in the transport, not in React Query.** `HttpClient` knows which
 methods are idempotent (GET/HEAD/PUT/DELETE) and which failures are transient
@@ -190,7 +201,7 @@ your FastAPI, so the suite can force failure modes on demand:
 
 ```bash
 curl -X POST localhost:8000/__control__ -d '{"readyz":"fail"}'      # readiness down
-curl -X POST localhost:8000/__control__ -d '{"agents":"enabled"}'   # /agents starts existing
+curl -X POST localhost:8000/__control__ -d '{"agents":"reset"}'     # agent statuses back to the seed
 curl -X POST localhost:8000/__control__ -d '{"messages":"missing"}' # the chat endpoints 404
 curl -X POST localhost:8000/__control__ -d '{"send":"fail"}'        # sending answers 500
 curl -X POST localhost:8000/__control__ -d '{"replyDelayMs":5000}'  # a slow agent

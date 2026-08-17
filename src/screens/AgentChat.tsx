@@ -158,7 +158,8 @@ export function AgentChat({ agentId, onBack }: AgentChatProps) {
               <Text style={[styles.noticeTitle, { color: colors.text }]}>No messaging endpoint yet</Text>
               <Text style={[styles.noticeText, { color: colors.textMuted }]}>
                 The client, schema, polling loop and this screen are already in place. Add{' '}
-                <Text style={styles.code}>GET</Text> and <Text style={styles.code}>POST /agents/{agentId}/messages</Text>{' '}
+                <Text style={styles.code}>GET</Text> and{' '}
+                <Text style={styles.code}>POST /v1/agents/{agentId}/messages</Text>{' '}
                 to the API and this thread fills itself in — see docs/control-plane.md for the exact shape.
               </Text>
             </View>

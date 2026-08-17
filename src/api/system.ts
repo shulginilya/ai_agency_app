@@ -3,7 +3,16 @@ import { ApiError } from '@/api/errors';
 import type { HttpClient } from '@/api/http';
 import { ProbeBodySchema, type ProbeBody } from '@/api/schemas';
 
-/** The demo endpoints that exist today. Add to this map as the API grows. */
+/**
+ * The endpoints worth a reachability check on the control screen. Not just
+ * k8s-style health checks — any route is fair game, versioned or not. Add to
+ * this map as the API grows; `ProbeBodySchema` accepts whatever shape comes
+ * back, so a new entry never needs a new schema.
+ *
+ * Data endpoints stay out: `/v1/agents` is already fetched by `useAgents`, and
+ * the list on the screen shows whether that call worked. Probing it as well
+ * would double the traffic to answer the same question twice.
+ */
 export const PROBES = {
   healthz: { path: '/healthz', label: 'Liveness', hint: 'Process is up and serving' },
   readyz: { path: '/readyz', label: 'Readiness', hint: 'Dependencies are wired and ready' },

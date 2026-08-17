@@ -36,7 +36,7 @@ type Api = {
 };
 
 /**
- * A stateful stub: a command really does change what the next `GET /agents/a1`
+ * A stateful stub: a command really does change what the next `GET /v1/agents/a1`
  * answers. With a fixed fixture the screen would look like it works while
  * actually just echoing the same status back at itself.
  */
@@ -47,17 +47,17 @@ function stubApi({ agent, thread, send, command }: Api) {
     const path = new URL(url).pathname;
     const method = init?.method ?? 'GET';
 
-    if (path === '/agents/a1' && method === 'GET') {
+    if (path === '/v1/agents/a1' && method === 'GET') {
       return agent ? agent() : fakeResponse({ body: current });
     }
-    if (path === '/agents/a1/messages' && method === 'GET') {
+    if (path === '/v1/agents/a1/messages' && method === 'GET') {
       return thread ? thread() : fakeResponse({ body: { messages: [] } });
     }
-    if (path === '/agents/a1/messages' && method === 'POST') {
+    if (path === '/v1/agents/a1/messages' && method === 'POST') {
       return send ? send() : fakeResponse({ status: 202, body: { message: USER } });
     }
 
-    const verb = /^\/agents\/a1\/(start|pause|stop)$/.exec(path)?.[1];
+    const verb = /^\/v1\/agents\/a1\/(start|pause|stop)$/.exec(path)?.[1];
     if (verb && method === 'POST') {
       if (command) return command();
       current = { ...current, status: verb === 'start' ? 'running' : verb === 'pause' ? 'paused' : 'stopped' };
@@ -115,7 +115,7 @@ describe('Agent chat', () => {
 
     await waitFor(() => expect(screen.getByText('summarise the leads')).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/agents/a1/messages'),
+      expect.stringContaining('/v1/agents/a1/messages'),
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ content: 'summarise the leads' }) }),
     );
 
@@ -184,7 +184,7 @@ describe('Agent chat', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/agents/a1/pause'),
+        expect.stringContaining('/v1/agents/a1/pause'),
         expect.objectContaining({ method: 'POST' }),
       ),
     );

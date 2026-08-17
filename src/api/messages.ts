@@ -1,3 +1,4 @@
+import { agentPath } from '@/api/agents';
 import { apiClient } from '@/api/client';
 import type { HttpClient } from '@/api/http';
 import {
@@ -13,9 +14,9 @@ import {
  * The contract this expects (see docs/control-plane.md — the server does not
  * implement it yet, the mock in tools/mock-agent-api.mjs does):
  *
- *   GET  /agents/{id}/messages?after=<message id>&limit=<n>
+ *   GET  /v1/agents/{id}/messages?after=<message id>&limit=<n>
  *        -> [Message]  or  { "messages": [Message] }
- *   POST /agents/{id}/messages   { "content": "…" }
+ *   POST /v1/agents/{id}/messages   { "content": "…" }
  *        -> 202  Message  or  { "message": Message }
  *
  * The POST answers with the *user's* message, accepted — not with the reply. The
@@ -38,7 +39,7 @@ export async function listMessages(
   agentId: string,
   { client = apiClient, signal, after, limit }: ListMessagesOptions = {},
 ): Promise<Message[]> {
-  const { data } = await client.get(`/agents/${encodeURIComponent(agentId)}/messages`, {
+  const { data } = await client.get(agentPath(agentId, 'messages'), {
     schema: MessageListResponseSchema,
     query: { after, limit },
     signal,
@@ -53,7 +54,7 @@ export async function sendMessage(
   { client = apiClient, signal }: MessagesApiOptions = {},
 ): Promise<Message> {
   const { data } = await client.post(
-    `/agents/${encodeURIComponent(agentId)}/messages`,
+    agentPath(agentId, 'messages'),
     { content },
     { schema: SendMessageResponseSchema, signal },
   );

@@ -5,22 +5,16 @@ import { z } from 'zod';
  *
  * Two different strictness levels on purpose:
  *
- * - Probe endpoints (`/healthz`, `/readyz`) follow the Kubernetes convention:
- *   the HTTP status *is* the answer, the body is a bonus. So the schema is
- *   permissive — unknown keys are kept, an empty body is legal — and we only
- *   type the fields we actually render.
+ * - Probe endpoints (anything in `PROBES`, e.g. `/healthz`, `/readyz`) only care
+ *   about the HTTP status — that *is* the answer, the body is a bonus the UI
+ *   renders raw. `PROBES` is meant to grow to any route worth a reachability
+ *   check, not just `/healthz`-shaped ones, so the body can be an object, a
+ *   list, or nothing at all. The schema is maximally permissive to match: it
+ *   accepts anything.
  * - Everything else is strict. If the server changes shape, the app fails loudly
  *   with a `validation` ApiError instead of rendering `undefined` somewhere.
  */
-export const ProbeBodySchema = z
-  .looseObject({
-    status: z.string().optional(),
-    version: z.string().optional(),
-    uptime_seconds: z.number().optional(),
-    detail: z.string().optional(),
-    checks: z.record(z.string(), z.unknown()).optional(),
-  })
-  .nullish();
+export const ProbeBodySchema = z.unknown().nullish();
 
 export type ProbeBody = z.infer<typeof ProbeBodySchema>;
 
@@ -55,9 +49,9 @@ function unwrapEnvelope(key: string) {
 export const unwrapAgentList = unwrapEnvelope('agents');
 
 /**
- * Accepts both `[...]` and `{"agents": [...]}` because the endpoint does not
- * exist yet — whichever you settle on, the app already reads it. Narrow this to
- * the real shape once `/agents` ships.
+ * Accepts both `[...]` and `{"agents": [...]}` because `GET /v1/agents` is not
+ * pinned to one of them yet — whichever you settle on, the app already reads it.
+ * Narrow this once the shape is fixed.
  *
  * Unwrapping before validating (rather than a union of both shapes) keeps the
  * error messages pointed at the offending field, e.g. `0.status`, instead of a
@@ -97,5 +91,5 @@ export const unwrapMessage = unwrapEnvelope('message');
 /** Accepts `[...]` and `{"messages": [...]}`, same deal as the agent list. */
 export const MessageListResponseSchema = z.preprocess(unwrapMessageList, z.array(MessageSchema));
 
-/** `POST /agents/{id}/messages` answers with the accepted message, enveloped or not. */
+/** `POST /v1/agents/{id}/messages` answers with the accepted message, enveloped or not. */
 export const SendMessageResponseSchema = z.preprocess(unwrapMessage, MessageSchema);

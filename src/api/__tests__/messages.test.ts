@@ -49,7 +49,7 @@ describe('listMessages', () => {
     await listMessages('a/1', { client: clientWith(fetchImpl), after: 'm7', limit: 20 });
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://localhost:8000/agents/a%2F1/messages?after=m7&limit=20',
+      'http://localhost:8000/v1/agents/a%2F1/messages?after=m7&limit=20',
       expect.anything(),
     );
   });
@@ -57,7 +57,7 @@ describe('listMessages', () => {
   it('omits query params that were not asked for', async () => {
     const fetchImpl = fetchSequence([fakeResponse({ body: [] })]);
     await listMessages('a1', { client: clientWith(fetchImpl) });
-    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/agents/a1/messages', expect.anything());
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/v1/agents/a1/messages', expect.anything());
   });
 
   it('rejects loudly on an unknown role rather than rendering it', async () => {
@@ -99,7 +99,7 @@ describe('sendMessage', () => {
     const message = await sendMessage('a1', 'summarise the leads', { client: clientWith(fetchImpl) });
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://localhost:8000/agents/a1/messages',
+      'http://localhost:8000/v1/agents/a1/messages',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ content: 'summarise the leads' }) }),
     );
     expect(message).toEqual(USER);

@@ -9,7 +9,7 @@
 describe('Talking to an agent', () => {
   beforeEach(() => {
     cy.setApiState({ reset: true });
-    cy.setApiState({ agents: 'enabled', messages: 'reset' });
+    cy.setApiState({ agents: 'reset', messages: 'reset' });
   });
 
   it('opens a thread from the agents list', () => {
@@ -67,6 +67,6 @@ describe('Talking to an agent', () => {
     cy.setApiState({ messages: 'missing' });
     cy.visit('/agent/a1');
 
-    cy.byTestId('chat-not-implemented').should('contain.text', '/agents/a1/messages');
+    cy.byTestId('chat-not-implemented').should('contain.text', '/v1/agents/a1/messages');
   });
 });

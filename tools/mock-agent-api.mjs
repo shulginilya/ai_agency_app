@@ -11,7 +11,7 @@
  *
  * Test-only control channel:
  *   POST /__control__ {"readyz":"fail"}       -> readiness starts answering 503
- *   POST /__control__ {"agents":"enabled"}    -> GET /agents starts working
+ *   POST /__control__ {"agents":"reset"}      -> agent statuses back to the seed
  *   POST /__control__ {"messages":"missing"}  -> the messaging endpoints 404
  *   POST /__control__ {"send":"fail"}         -> POST a message answers 500
  *   POST /__control__ {"replyDelayMs":5000}   -> the agent takes its time replying
@@ -27,8 +27,6 @@ const DEFAULT_STATE = {
   /** 'ok' | 'fail' */
   healthz: 'ok',
   readyz: 'ok',
-  /** 'missing' mirrors today's real API, where /agents does not exist yet. */
-  agents: 'missing',
   /** 'enabled' | 'missing' — the chat endpoints, independently switchable. */
   messages: 'enabled',
   /** 'ok' | 'fail' — make POST /messages answer 500, to exercise the rollback. */
@@ -39,10 +37,16 @@ const DEFAULT_STATE = {
 };
 
 let state = { ...DEFAULT_STATE };
-let agents = [
-  { id: 'a1', name: 'Research agent', status: 'running', updated_at: new Date().toISOString() },
-  { id: 'a2', name: 'Outreach agent', status: 'idle', updated_at: new Date().toISOString() },
+
+const AGENT_SEED = [
+  { id: 'a1', name: 'Research agent', status: 'running' },
+  { id: 'a2', name: 'Outreach agent', status: 'idle' },
 ];
+
+/** Fresh copies, so a command that mutates one agent cannot poison the seed. */
+const seedAgents = () => AGENT_SEED.map((agent) => ({ ...agent, updated_at: new Date().toISOString() }));
+
+let agents = seedAgents();
 
 /** agent id -> thread. Reset with {"messages":"reset"}. */
 let threads = new Map();
@@ -129,7 +133,10 @@ const server = createServer(async (req, res) => {
     if (method === 'POST') {
       const patch = await readJson(req);
       state = patch.reset ? { ...DEFAULT_STATE } : { ...state, ...patch };
-      if (patch.agents === 'reset') agents = agents.map((agent) => ({ ...agent, status: 'idle' }));
+      // `agents` is an action, not a mode — the routes always exist, so there is
+      // no such state to hold on to afterwards.
+      if (patch.agents === 'reset' || patch.reset) agents = seedAgents();
+      delete state.agents;
       if (patch.reset || patch.messages === 'reset') {
         clearPendingReplies();
         threads = new Map();
@@ -158,22 +165,19 @@ const server = createServer(async (req, res) => {
     return send(res, 200, { status: 'ready', checks: { database: 'ok', queue: 'ok' } });
   }
 
-  if (pathname === '/agents' && method === 'GET') {
-    if (state.agents !== 'enabled') return send(res, 404, { detail: 'Not Found' });
+  if (pathname === '/v1/agents' && method === 'GET') {
     return send(res, 200, agents);
   }
 
-  const one = /^\/agents\/([^/]+)$/.exec(pathname);
+  const one = /^\/v1\/agents\/([^/]+)$/.exec(pathname);
   if (one && method === 'GET') {
-    if (state.agents !== 'enabled') return send(res, 404, { detail: 'Not Found' });
     const agent = agents.find((candidate) => candidate.id === decodeURIComponent(one[1]));
     if (!agent) return send(res, 404, { detail: 'Unknown agent' });
     return send(res, 200, agent);
   }
 
-  const command = /^\/agents\/([^/]+)\/(start|stop|pause)$/.exec(pathname);
+  const command = /^\/v1\/agents\/([^/]+)\/(start|stop|pause)$/.exec(pathname);
   if (command && method === 'POST') {
-    if (state.agents !== 'enabled') return send(res, 404, { detail: 'Not Found' });
     const [, id, verb] = command;
     const agent = agents.find((candidate) => candidate.id === decodeURIComponent(id));
     if (!agent) return send(res, 404, { detail: 'Unknown agent' });
@@ -185,7 +189,7 @@ const server = createServer(async (req, res) => {
     return send(res, 200, agent);
   }
 
-  const thread = /^\/agents\/([^/]+)\/messages$/.exec(pathname);
+  const thread = /^\/v1\/agents\/([^/]+)\/messages$/.exec(pathname);
   if (thread) {
     if (state.messages !== 'enabled') return send(res, 404, { detail: 'Not Found' });
     const agentId = decodeURIComponent(thread[1]);

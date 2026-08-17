@@ -69,16 +69,14 @@ describe('Agent control plane', () => {
     cy.byTestId('system-status', { timeout: 20_000 }).should('contain.text', 'healthy');
   });
 
-  it('explains that /agents is not implemented yet, then lists agents once it is', () => {
+  it('lists the agents from GET /v1/agents', () => {
     cy.visitControlPlane();
-    cy.byTestId('agents-error').should('contain.text', 'does not exist yet');
 
-    cy.setApiState({ agents: 'enabled' });
-    cy.reload();
-
+    cy.byTestId('agents-error').should('not.exist');
     cy.byTestId('agent-row-a1').should('contain.text', 'Research agent');
     cy.byTestId('agent-status-a1').should('contain.text', 'running');
     cy.byTestId('agent-row-a2').should('contain.text', 'Outreach agent');
+    cy.byTestId('request-log-row').should('contain.text', '/v1/agents');
   });
 
   it('survives a slow API without hanging the screen', () => {

@@ -15,6 +15,12 @@ function clientWith(fetchImpl: jest.Mock) {
 }
 
 describe('listAgents', () => {
+  it('calls the versioned collection route', async () => {
+    const fetchImpl = fetchSequence([fakeResponse({ body: [AGENT] })]);
+    await listAgents({ client: clientWith(fetchImpl) });
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/v1/agents', expect.anything());
+  });
+
   it('accepts a bare array', async () => {
     const agents = await listAgents({ client: clientWith(fetchSequence([fakeResponse({ body: [AGENT] })])) });
     expect(agents).toEqual([AGENT]);
@@ -44,7 +50,7 @@ describe('listAgents', () => {
     expect(error.kind).toBe('validation');
   });
 
-  it('surfaces the 404 of the not-yet-implemented endpoint as an http error', async () => {
+  it('surfaces a 404 as an http error rather than an empty list', async () => {
     const error = await catchApiError(
       listAgents({ client: clientWith(fetchSequence([fakeResponse({ status: 404, body: { detail: 'Not Found' } })])) }),
     );
@@ -58,7 +64,7 @@ describe('getAgent', () => {
   it('url-encodes the id', async () => {
     const fetchImpl = fetchSequence([fakeResponse({ body: AGENT })]);
     await getAgent('a/1', { client: clientWith(fetchImpl) });
-    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/agents/a%2F1', expect.anything());
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/v1/agents/a%2F1', expect.anything());
   });
 });
 
@@ -69,7 +75,7 @@ describe('commandAgent', () => {
     const agent = await commandAgent('a1', 'stop', { client: clientWith(fetchImpl) });
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://localhost:8000/agents/a1/stop',
+      'http://localhost:8000/v1/agents/a1/stop',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(agent.status).toBe('stopped');

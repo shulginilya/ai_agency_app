@@ -201,7 +201,7 @@ describe('useSendMessage', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/agents/a1/messages'),
+      expect.stringContaining('/v1/agents/a1/messages'),
       expect.objectContaining({ method: 'POST' }),
     );
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['agents', 'a1', 'messages'] });

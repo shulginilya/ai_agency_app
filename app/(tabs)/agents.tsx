@@ -32,9 +32,9 @@ const STATUS_COPY: Record<string, string> = {
 /**
  * Proof of concept for the agent control plane.
  *
- * It does three things: calls the two live endpoints and shows what came back,
- * demonstrates the extension path with an endpoint that does not exist yet, and
- * exposes the raw request log so the network layer is visible rather than magic.
+ * It does three things: probes the two health checks and shows what came back,
+ * lists the agents from `GET /v1/agents`, and exposes the raw request log so the
+ * network layer is visible rather than magic.
  */
 export default function AgentsScreen() {
   const { colors } = useTheme();
@@ -103,9 +103,6 @@ export default function AgentsScreen() {
           ) : agents.error ? (
             <Text testID="agents-error" style={[styles.cardText, { color: colors.textMuted }]}>
               {isApiError(agents.error) ? agents.error.userMessage : 'Could not load agents.'}
-              {isApiError(agents.error) && agents.error.status === 404
-                ? ' The client, schema and hook are already in place — add GET /agents and this list fills itself in.'
-                : ''}
             </Text>
           ) : agents.data && agents.data.length > 0 ? (
             agents.data.map((agent) => (
