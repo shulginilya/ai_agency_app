@@ -24,6 +24,9 @@ module.exports = {
     // e2e run instead. The screen a route mounts lives in src/ and is tested there.
     '!app/**/_layout.tsx',
     '!app/agent/**',
+    // TEMPORARY: dummy agents for looking at the screen before /v1/agents serves
+    // anything. Goes away with src/api/fixtures/ — see docs/control-plane.md.
+    '!src/api/fixtures/**',
   ],
   coverageThreshold: {
     global: { statements: 85, branches: 80, functions: 80, lines: 85 },

@@ -1,6 +1,6 @@
 import { commandAgent, getAgent, listAgents } from '@/api/agents';
 import { HttpClient } from '@/api/http';
-import { unwrapAgentList } from '@/api/schemas';
+import { AgentListResponseSchema, unwrapAgentList } from '@/api/schemas';
 import { catchApiError } from '@/test-utils/expect';
 import { fakeResponse, fetchSequence } from '@/test-utils/http';
 
@@ -87,5 +87,52 @@ describe('unwrapAgentList', () => {
     expect(unwrapAgentList({ agents: [AGENT] })).toEqual([AGENT]);
     expect(unwrapAgentList([AGENT])).toEqual([AGENT]);
     expect(unwrapAgentList(null)).toBeNull();
+  });
+});
+
+/**
+ * TEMPORARY, alongside src/api/fixtures/agents.ts. Delete this block with it.
+ *
+ * The flag is read at module load, so the module has to be re-imported after the
+ * env changes — which is also what makes "off by default" real rather than a
+ * claim: every other test in this file asserts a `fetch` that the fixtures would
+ * have swallowed.
+ */
+describe('EXPO_PUBLIC_MOCK_AGENTS', () => {
+  const original = process.env.EXPO_PUBLIC_MOCK_AGENTS;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.EXPO_PUBLIC_MOCK_AGENTS;
+    else process.env.EXPO_PUBLIC_MOCK_AGENTS = original;
+    jest.resetModules();
+  });
+
+  it('serves fixtures that satisfy the real schema, without touching the network', async () => {
+    process.env.EXPO_PUBLIC_MOCK_AGENTS = '1';
+    jest.resetModules();
+    const api = await import('@/api/agents');
+    const fetchImpl = jest.fn();
+
+    const agents = await api.listAgents({ client: clientWith(fetchImpl) });
+
+    expect(agents.length).toBeGreaterThan(0);
+    expect(() => AgentListResponseSchema.parse(agents)).not.toThrow();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('lets a command move an agent, so the screen is worth clicking', async () => {
+    process.env.EXPO_PUBLIC_MOCK_AGENTS = '1';
+    jest.resetModules();
+    const api = await import('@/api/agents');
+    const fetchImpl = jest.fn();
+    const [first] = await api.listAgents({ client: clientWith(fetchImpl) });
+
+    const paused = await api.commandAgent(first.id, 'pause', { client: clientWith(fetchImpl) });
+
+    expect(paused.status).toBe('paused');
+    await expect(api.getAgent(first.id, { client: clientWith(fetchImpl) })).resolves.toMatchObject({
+      status: 'paused',
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
