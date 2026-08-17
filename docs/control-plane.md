@@ -126,6 +126,81 @@ writes "…was paused" into the same thread, so one surface holds both what was
 said to the agent and what happened to it. If your API would rather keep events
 separate, just never emit the role — the client renders whatever it is given.
 
+## Keeping the Python API and these schemas in step
+
+The API is a separate FastAPI repo. Nothing generates anything: `src/api/schemas.ts`
+is hand-written, the Pydantic models are hand-written, and a test compares them.
+
+The obvious alternative was code generation — either the server's spec generates
+`schemas.ts`, or `schemas.ts` generates the Pydantic models. Both work. Both mean
+one side stops being hand-written, and the comments in `schemas.ts` explaining
+*why* a field is loose are exactly the thing a generator discards. So instead:
+
+```
+FastAPI repo                          this repo
+────────────                          ─────────
+contracts/python/contracts.py    →    contracts/openapi.json      (npm run contract:pull)
+  hand-written Pydantic                 pinned copy of the spec
+export_openapi.py --check                        ↓
+  CI: spec committed?                 src/api/__tests__/contract.test.ts
+                                        does the spec fit through our zod?
+                                                 ↓
+                                      src/api/schemas.ts
+                                        hand-written zod
+```
+
+`contracts/python/` holds a reference copy of both Python files — copy them into
+the API repo; they are not run from here.
+
+**The comparison is asymmetric, on purpose.** The server produces and the app
+consumes, so the question is never "are these identical" but *can the server send
+something this app would refuse*. A field the server sends and the app ignores is
+fine — zod strips unknown keys. A field the app requires that the server may omit
+is a crash. Only the second kind fails the build; the first is printed and
+tolerated.
+
+What it catches, in the words it uses:
+
+| Change on the server | What the test says |
+|---|---|
+| Field renamed (`status` → `state`) | `client requires this field, the server does not document it at all` |
+| Field made optional | `client requires this field, server may omit it` |
+| New enum member (`draining`) | `server may send [draining], client rejects those values` |
+| `AgentStatus` loosened to `str` | `client accepts only […], server documents an open string — declare an enum server-side` |
+| `str` where the app expects a number | `server sends integer, client expects string` |
+| `min_length` dropped | `client requires minLength 1, server permits 0` |
+| A field started arriving as `null` | `server may send null here, client rejects it` |
+| Route renamed or removed | `spec has no GET /v1/agents → 200 application/json response` |
+
+**Everyday use needs no server.** The test reads the pinned `contracts/openapi.json`,
+so `npm test` works offline and in CI. A spec change reaches the build only when
+someone commits it — which is the moment the conversation should happen.
+
+```bash
+npm run contract:pull                              # refresh from localhost:8000
+npm run contract:pull -- --url http://10.0.2.2:8000
+npm run contract:pull -- --check                   # CI, when the API is available
+```
+
+Both sides sort the spec's keys before writing, because FastAPI's key order is not
+stable across versions — unsorted, every regeneration is a diff nobody reads.
+
+**Three things the Python side has to say out loud**, because the app already
+assumes them and the test enforces them:
+
+- `AgentStatus`/`MessageRole` are `StrEnum`, not `str`. A bare `str` means a
+  seventh status is legal on the wire and fatal in the app.
+- Identifiers carry `Field(min_length=1)`, matching `z.string().min(1)` here.
+  (A `datetime` field is exempt — a `date-time` string is never empty.)
+- `str | None = None` puts `"updated_at": null` on the wire, not an absent key.
+  `Agent.updated_at`, `Agent.description` and `Message.pending` are `.nullish()`
+  here for that reason. If you would rather omit the key, set
+  `response_model_exclude_none=True` on the route.
+
+**The mock is not checked against this.** `tools/mock-agent-api.mjs` exists to
+force failure modes the real API cannot be asked for; keeping it spec-conformant
+would defeat that.
+
 ## Decisions worth knowing about
 
 **Probes do not throw.** `runProbe` returns `{ ok: false, error }` instead of
@@ -205,6 +280,7 @@ production over the public internet should be HTTPS.
 | Transport | `src/api/__tests__/http.test.ts` | timeouts, abort, backoff, auth header, error taxonomy, logging |
 | Config | `src/api/__tests__/config.test.ts` | base URL per platform and host |
 | Endpoints | `src/api/__tests__/{system,agents,messages}.test.ts` | probe verdicts, schema strictness, both list shapes |
+| Contract | `src/api/__tests__/contract.test.ts` | the pinned FastAPI spec still fits through `schemas.ts` |
 | Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, conditional polling, optimistic send + rollback |
 | Components | `src/components/__tests__/*` | probe card states, log rows, message bubbles |
 | Screens | `__tests__/{agents-screen,agent-chat}.test.tsx` | the whole thing with only `fetch` stubbed |

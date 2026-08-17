@@ -1,0 +1,224 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Agent control plane",
+    "version": "0.1.0",
+    "description": "Pinned copy of the FastAPI spec. Refresh with `npm run contract:pull` against a running server; src/api/__tests__/contract.test.ts checks src/api/schemas.ts against it. Seeded by hand from docs/control-plane.md before the server implemented the routes — every mismatch it reports on first pull is a real difference to settle, not a bug in the checker."
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Liveness",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Readiness",
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "503": { "description": "Not ready" }
+        }
+      }
+    },
+    "/v1/agents": {
+      "get": {
+        "summary": "List Agents",
+        "operationId": "list_agents_v1_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AgentList" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}": {
+      "get": {
+        "summary": "Get Agent",
+        "operationId": "get_agent_v1_agents__agent_id__get",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Agent" } } }
+          },
+          "404": { "description": "Not Found" }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/start": {
+      "post": {
+        "summary": "Start Agent",
+        "operationId": "start_agent_v1_agents__agent_id__start_post",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Agent" } } }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/stop": {
+      "post": {
+        "summary": "Stop Agent",
+        "operationId": "stop_agent_v1_agents__agent_id__stop_post",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Agent" } } }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/pause": {
+      "post": {
+        "summary": "Pause Agent",
+        "operationId": "pause_agent_v1_agents__agent_id__pause_post",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Agent" } } }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/messages": {
+      "get": {
+        "summary": "List Messages",
+        "operationId": "list_messages_v1_agents__agent_id__messages_get",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "After" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageList" } } }
+          }
+        }
+      },
+      "post": {
+        "summary": "Send Message",
+        "operationId": "send_message_v1_agents__agent_id__messages_post",
+        "parameters": [
+          { "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Agent Id" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SendMessageRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageEnvelope" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentStatus": {
+        "type": "string",
+        "enum": ["idle", "starting", "running", "paused", "error", "stopped"],
+        "title": "AgentStatus",
+        "description": "A Python StrEnum, not a bare str: the client pins these six values and would reject a seventh."
+      },
+      "Agent": {
+        "type": "object",
+        "title": "Agent",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "title": "Id" },
+          "name": { "type": "string", "minLength": 1, "title": "Name" },
+          "status": { "$ref": "#/components/schemas/AgentStatus" },
+          "updated_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }], "title": "Updated At" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" }
+        },
+        "required": ["id", "name", "status"]
+      },
+      "AgentList": {
+        "type": "object",
+        "title": "AgentList",
+        "properties": {
+          "agents": { "type": "array", "items": { "$ref": "#/components/schemas/Agent" }, "title": "Agents" }
+        },
+        "required": ["agents"]
+      },
+      "MessageRole": {
+        "type": "string",
+        "enum": ["user", "agent", "system"],
+        "title": "MessageRole"
+      },
+      "Message": {
+        "type": "object",
+        "title": "Message",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "title": "Id" },
+          "agent_id": { "type": "string", "minLength": 1, "title": "Agent Id" },
+          "role": { "$ref": "#/components/schemas/MessageRole" },
+          "content": { "type": "string", "title": "Content" },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "pending": { "anyOf": [{ "type": "boolean" }, { "type": "null" }], "title": "Pending" }
+        },
+        "required": ["id", "agent_id", "role", "content", "created_at"]
+      },
+      "MessageList": {
+        "type": "object",
+        "title": "MessageList",
+        "properties": {
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" }, "title": "Messages" }
+        },
+        "required": ["messages"]
+      },
+      "MessageEnvelope": {
+        "type": "object",
+        "title": "MessageEnvelope",
+        "properties": { "message": { "$ref": "#/components/schemas/Message" } },
+        "required": ["message"]
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "title": "SendMessageRequest",
+        "properties": { "content": { "type": "string", "minLength": 1, "title": "Content" } },
+        "required": ["content"]
+      }
+    }
+  }
+}

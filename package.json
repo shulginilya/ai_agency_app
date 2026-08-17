@@ -15,6 +15,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "mock:api": "node tools/mock-agent-api.mjs",
+    "contract:pull": "node tools/pull-openapi.mjs",
     "web:e2e": "expo start --web --port 8081",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
