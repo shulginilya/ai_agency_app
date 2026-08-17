@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import AgentsScreen from '../app/(tabs)/agents';
 import { requestLog } from '@/api/log';
 import { fakeResponse } from '@/test-utils/http';
@@ -25,6 +26,7 @@ function stubApi(routes: Routes) {
 const HEALTHY: Routes = {
   '/healthz': () => fakeResponse({ body: { status: 'ok', version: '0.1.0' } }),
   '/readyz': () => fakeResponse({ body: { status: 'ready' } }),
+  '/v1/agents': () => fakeResponse({ body: [{ id: 'a1', name: 'Research agent', status: 'running' }] }),
 };
 
 beforeEach(() => requestLog.clear());
@@ -38,13 +40,14 @@ describe('Agents control screen', () => {
     await waitFor(() => expect(screen.getByTestId('system-status')).toHaveTextContent('healthy'));
   });
 
-  it('reports healthy and renders both probe results', async () => {
+  it('reports healthy and renders every probe result', async () => {
     stubApi(HEALTHY);
     renderWithQuery(<AgentsScreen />);
 
     await waitFor(() => expect(screen.getByTestId('system-status')).toHaveTextContent('healthy'));
     expect(screen.getByTestId('probe-status-healthz')).toHaveTextContent('up');
     expect(screen.getByTestId('probe-status-readyz')).toHaveTextContent('up');
+    expect(screen.queryByTestId('probe-status-agents')).toBeNull();
     expect(screen.getByTestId('probe-http-healthz')).toHaveTextContent('HTTP 200');
     expect(screen.getByTestId('probe-body-healthz')).toHaveTextContent(/0\.1\.0/);
     expect(screen.getByTestId('last-checked')).toBeTruthy();
@@ -73,23 +76,37 @@ describe('Agents control screen', () => {
     expect(screen.getByTestId('probe-error-healthz')).toHaveTextContent(/Cannot reach the API/);
   });
 
-  it('explains that /agents is not implemented yet instead of erroring out', async () => {
+  it('lists the agents GET /v1/agents answers with', async () => {
     stubApi(HEALTHY);
-    renderWithQuery(<AgentsScreen />);
-
-    await waitFor(() => expect(screen.getByTestId('agents-error')).toBeTruthy());
-    expect(screen.getByTestId('agents-error')).toHaveTextContent(/does not exist yet/);
-  });
-
-  it('lists agents once the endpoint answers', async () => {
-    stubApi({
-      ...HEALTHY,
-      '/agents': () => fakeResponse({ body: [{ id: 'a1', name: 'Research agent', status: 'running' }] }),
-    });
     renderWithQuery(<AgentsScreen />);
 
     await waitFor(() => expect(screen.getByTestId('agent-row-a1')).toBeTruthy());
     expect(screen.getByTestId('agent-status-a1')).toHaveTextContent('running');
+    expect(screen.queryByTestId('agents-error')).toBeNull();
+  });
+
+  it('surfaces a failing agent list as an error, not as an empty list', async () => {
+    stubApi({
+      ...HEALTHY,
+      '/v1/agents': () => fakeResponse({ status: 500, body: { detail: 'boom' } }),
+    });
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('agents-error')).toBeTruthy());
+    expect(screen.queryByTestId('agent-row-a1')).toBeNull();
+  });
+
+  it('opens the chat for the agent you tap', async () => {
+    stubApi({
+      ...HEALTHY,
+      '/v1/agents': () => fakeResponse({ body: [{ id: 'a 1', name: 'Research agent', status: 'running' }] }),
+    });
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('agent-row-a 1')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('agent-row-a 1'));
+
+    expect(router.push).toHaveBeenCalledWith('/agent/a%201');
   });
 
   it('re-runs the probes when "Run checks" is pressed', async () => {

@@ -3,7 +3,11 @@ export {};
 type ApiState = Partial<{
   healthz: 'ok' | 'fail';
   readyz: 'ok' | 'fail';
-  agents: 'missing' | 'enabled';
+  /** An action, not a mode: puts the agent statuses back to the seed. */
+  agents: 'reset';
+  messages: 'missing' | 'enabled' | 'reset';
+  send: 'ok' | 'fail';
+  replyDelayMs: number;
   latencyMs: number;
   reset: boolean;
 }>;

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { apiClient } from '@/api/client';
@@ -31,12 +32,13 @@ const STATUS_COPY: Record<string, string> = {
 /**
  * Proof of concept for the agent control plane.
  *
- * It does three things: calls the two live endpoints and shows what came back,
- * demonstrates the extension path with an endpoint that does not exist yet, and
- * exposes the raw request log so the network layer is visible rather than magic.
+ * It does three things: probes the two health checks and shows what came back,
+ * lists the agents from `GET /v1/agents`, and exposes the raw request log so the
+ * network layer is visible rather than magic.
  */
 export default function AgentsScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status, byName, isFetching, lastCheckedAt, refresh } = useSystemStatus({ autoRefresh });
   const agents = useAgents();
@@ -101,13 +103,17 @@ export default function AgentsScreen() {
           ) : agents.error ? (
             <Text testID="agents-error" style={[styles.cardText, { color: colors.textMuted }]}>
               {isApiError(agents.error) ? agents.error.userMessage : 'Could not load agents.'}
-              {isApiError(agents.error) && agents.error.status === 404
-                ? ' The client, schema and hook are already in place — add GET /agents and this list fills itself in.'
-                : ''}
             </Text>
           ) : agents.data && agents.data.length > 0 ? (
             agents.data.map((agent) => (
-              <View key={agent.id} testID={`agent-row-${agent.id}`} style={styles.agentRow}>
+              <Pressable
+                key={agent.id}
+                testID={`agent-row-${agent.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Open chat with ${agent.name}`}
+                onPress={() => router.push(`/agent/${encodeURIComponent(agent.id)}`)}
+                style={styles.agentRow}
+              >
                 <View style={styles.flex}>
                   <Text style={[styles.agentName, { color: colors.text }]}>{agent.name}</Text>
                   <Text style={[styles.agentId, { color: colors.textMuted }]}>{agent.id}</Text>
@@ -117,7 +123,8 @@ export default function AgentsScreen() {
                   label={agent.status}
                   tone={agent.status === 'error' ? 'danger' : agent.status === 'running' ? 'success' : 'muted'}
                 />
-              </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
             ))
           ) : (
             <Text testID="agents-empty" style={[styles.cardText, { color: colors.textMuted }]}>

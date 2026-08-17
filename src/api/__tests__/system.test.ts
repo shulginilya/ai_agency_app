@@ -11,10 +11,14 @@ function clientWith(fetchImpl: jest.Mock) {
 }
 
 describe('probe registry', () => {
-  it('exposes the two endpoints that exist today', () => {
+  it('exposes the endpoints that exist today', () => {
     expect(PROBE_NAMES).toEqual(['healthz', 'readyz']);
     expect(PROBES.healthz.path).toBe('/healthz');
     expect(PROBES.readyz.path).toBe('/readyz');
+  });
+
+  it('holds health checks only — data endpoints are fetched, not probed', () => {
+    expect(Object.values(PROBES).map((probe) => probe.path)).not.toContain('/v1/agents');
   });
 });
 
@@ -36,6 +40,16 @@ describe('runProbe', () => {
     const result = await runProbe('readyz', { client: clientWith(fetchImpl) });
 
     expect(result.body).toMatchObject({ queue_depth: 3 });
+  });
+
+  it('accepts a list body — a probed route need not be health-check-shaped', async () => {
+    const fetchImpl = fetchSequence([fakeResponse({ body: [{ check: 'database', status: 'ok' }] })]);
+
+    const result = await runProbe('readyz', { client: clientWith(fetchImpl) });
+
+    expect(result.ok).toBe(true);
+    expect(result.body).toEqual([{ check: 'database', status: 'ok' }]);
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/readyz', expect.anything());
   });
 
   it('accepts an empty body — the status code is the answer', async () => {

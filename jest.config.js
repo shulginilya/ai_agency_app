@@ -20,12 +20,15 @@ module.exports = {
     '!src/components/{ProductCard,TaskItem,EmptyState}.tsx',
     '!app/(tabs)/{index,feed}.tsx',
     '!app/+not-found.tsx',
-    // Router layouts are framework wiring, exercised by the e2e run instead.
+    // Router layouts and route wrappers are framework wiring, exercised by the
+    // e2e run instead. The screen a route mounts lives in src/ and is tested there.
     '!app/**/_layout.tsx',
+    '!app/agent/**',
   ],
   coverageThreshold: {
     global: { statements: 85, branches: 80, functions: 80, lines: 85 },
     './src/api/http.ts': { statements: 95, branches: 85, functions: 95, lines: 95 },
     './src/api/system.ts': { statements: 95, branches: 85, functions: 100, lines: 95 },
+    './src/api/messages.ts': { statements: 95, branches: 90, functions: 100, lines: 95 },
   },
 };

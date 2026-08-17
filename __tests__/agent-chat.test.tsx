@@ -1,0 +1,212 @@
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { requestLog } from '@/api/log';
+import type { Agent, Message } from '@/api/schemas';
+import { AgentChat } from '@/screens/AgentChat';
+import { fakeResponse } from '@/test-utils/http';
+import { renderWithQuery } from '@/test-utils/render';
+
+/**
+ * The chat screen end to end: real hooks, real client, real polling loop — only
+ * `fetch` is stubbed. This is the test that catches a broken wire between any two
+ * layers, which is exactly what the unit tests cannot see.
+ */
+const AGENT: Agent = { id: 'a1', name: 'Research agent', status: 'running' };
+
+const USER: Message = {
+  id: 'm1',
+  agent_id: 'a1',
+  role: 'user',
+  content: 'summarise the leads',
+  created_at: '2026-08-16T09:00:00.000Z',
+};
+
+const REPLY: Message = {
+  id: 'm2',
+  agent_id: 'a1',
+  role: 'agent',
+  content: 'Four leads worth a call.',
+  created_at: '2026-08-16T09:00:03.000Z',
+};
+
+type Api = {
+  agent?: () => Response;
+  thread?: () => Response;
+  send?: () => Response;
+  command?: () => Response;
+};
+
+/**
+ * A stateful stub: a command really does change what the next `GET /v1/agents/a1`
+ * answers. With a fixed fixture the screen would look like it works while
+ * actually just echoing the same status back at itself.
+ */
+function stubApi({ agent, thread, send, command }: Api) {
+  let current: Agent = AGENT;
+
+  const fetchMock = jest.fn(async (url: string, init?: RequestInit) => {
+    const path = new URL(url).pathname;
+    const method = init?.method ?? 'GET';
+
+    if (path === '/v1/agents/a1' && method === 'GET') {
+      return agent ? agent() : fakeResponse({ body: current });
+    }
+    if (path === '/v1/agents/a1/messages' && method === 'GET') {
+      return thread ? thread() : fakeResponse({ body: { messages: [] } });
+    }
+    if (path === '/v1/agents/a1/messages' && method === 'POST') {
+      return send ? send() : fakeResponse({ status: 202, body: { message: USER } });
+    }
+
+    const verb = /^\/v1\/agents\/a1\/(start|pause|stop)$/.exec(path)?.[1];
+    if (verb && method === 'POST') {
+      if (command) return command();
+      current = { ...current, status: verb === 'start' ? 'running' : verb === 'pause' ? 'paused' : 'stopped' };
+      return fakeResponse({ body: current });
+    }
+    return fakeResponse({ status: 404, body: { detail: 'Not Found' } });
+  });
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
+/** The poll runs at 1.5s, so anything waiting on a reply needs longer than the 1s default. */
+const POLL_TIMEOUT = { timeout: 6_000 };
+
+beforeEach(() => requestLog.clear());
+
+describe('Agent chat', () => {
+  it('names the agent it is talking to and shows its status', async () => {
+    stubApi({});
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('chat-agent-name')).toHaveTextContent('Research agent'));
+    expect(screen.getByTestId('chat-agent-status')).toHaveTextContent('running');
+  });
+
+  it('invites the first message when the thread is empty', async () => {
+    stubApi({});
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
+  });
+
+  it('renders an existing thread oldest-first', async () => {
+    stubApi({ thread: () => fakeResponse({ body: { messages: [REPLY, USER] } }) });
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('message-m1')).toHaveTextContent(/summarise the leads/));
+    expect(screen.getByTestId('message-m2')).toHaveTextContent(/Four leads worth a call\./);
+  });
+
+  it('sends what you typed, shows it immediately, then shows the reply', async () => {
+    let thread: Message[] = [];
+    const fetchMock = stubApi({
+      thread: () => fakeResponse({ body: { messages: thread } }),
+      send: () => {
+        thread = [USER];
+        return fakeResponse({ status: 202, body: { message: USER } });
+      },
+    });
+    renderWithQuery(<AgentChat agentId="a1" />);
+    await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
+
+    fireEvent.changeText(screen.getByTestId('composer-input'), 'summarise the leads');
+    fireEvent.press(screen.getByTestId('composer-send'));
+
+    await waitFor(() => expect(screen.getByText('summarise the leads')).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/agents/a1/messages'),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ content: 'summarise the leads' }) }),
+    );
+
+    // Nothing has answered yet, so the screen says so and keeps polling.
+    await waitFor(() => expect(screen.getByTestId('chat-awaiting')).toBeTruthy());
+
+    thread = [USER, REPLY];
+    await waitFor(
+      () => expect(screen.getByTestId('message-m2')).toHaveTextContent(/Four leads worth a call\./),
+      POLL_TIMEOUT,
+    );
+    expect(screen.queryByTestId('chat-awaiting')).toBeNull();
+  });
+
+  it('will not send an empty message', async () => {
+    const fetchMock = stubApi({});
+    renderWithQuery(<AgentChat agentId="a1" />);
+    await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
+    const before = fetchMock.mock.calls.length;
+
+    fireEvent.changeText(screen.getByTestId('composer-input'), '   ');
+    fireEvent.press(screen.getByTestId('composer-send'));
+
+    expect(fetchMock.mock.calls.length).toBe(before);
+  });
+
+  it('puts your text back in the box when the send fails', async () => {
+    stubApi({ send: () => fakeResponse({ status: 500, body: { detail: 'nope' } }) });
+    renderWithQuery(<AgentChat agentId="a1" />);
+    await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
+
+    fireEvent.changeText(screen.getByTestId('composer-input'), 'summarise the leads');
+    fireEvent.press(screen.getByTestId('composer-send'));
+
+    await waitFor(() => expect(screen.getByTestId('chat-send-error')).toBeTruthy());
+    expect(screen.getByTestId('composer-input').props.value).toBe('summarise the leads');
+  });
+
+  it('explains the missing endpoint instead of erroring out, and disables the composer', async () => {
+    stubApi({ thread: () => fakeResponse({ status: 404, body: { detail: 'Not Found' } }) });
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('chat-not-implemented')).toBeTruthy());
+    expect(screen.getByTestId('chat-not-implemented')).toHaveTextContent(/messages/);
+    expect(screen.getByTestId('composer-input').props.editable).toBe(false);
+  });
+
+  it('offers a retry when the thread cannot be reached at all', async () => {
+    globalThis.fetch = jest.fn(async () => {
+      throw new TypeError('Network request failed');
+    }) as unknown as typeof fetch;
+
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('chat-error')).toBeTruthy());
+    expect(screen.getByTestId('chat-error')).toHaveTextContent(/Cannot reach the API/);
+    expect(screen.getByTestId('chat-retry')).toBeTruthy();
+  });
+
+  it('drives the agent with the same commands the control API already exposes', async () => {
+    const fetchMock = stubApi({});
+    renderWithQuery(<AgentChat agentId="a1" />);
+    await waitFor(() => expect(screen.getByTestId('chat-agent-status')).toHaveTextContent('running'));
+
+    fireEvent.press(screen.getByTestId('chat-command-pause'));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/agents/a1/pause'),
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByTestId('chat-agent-status')).toHaveTextContent('paused'));
+  });
+
+  it('only offers the commands that make sense for the current status', async () => {
+    stubApi({ agent: () => fakeResponse({ body: { ...AGENT, status: 'idle' } }) });
+    renderWithQuery(<AgentChat agentId="a1" />);
+
+    await waitFor(() => expect(screen.getByTestId('chat-agent-status')).toHaveTextContent('idle'));
+    expect(screen.getByTestId('chat-command-start').props.accessibilityState.disabled).toBe(false);
+    expect(screen.getByTestId('chat-command-pause').props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('says so when a command is refused', async () => {
+    stubApi({ command: () => fakeResponse({ status: 409, body: { detail: 'already stopped' } }) });
+    renderWithQuery(<AgentChat agentId="a1" />);
+    await waitFor(() => expect(screen.getByTestId('chat-agent-status')).toHaveTextContent('running'));
+
+    fireEvent.press(screen.getByTestId('chat-command-stop'));
+
+    await waitFor(() => expect(screen.getByTestId('chat-command-error')).toHaveTextContent(/409/));
+  });
+});

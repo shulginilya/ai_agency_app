@@ -12,6 +12,16 @@ jest.mock('@expo/vector-icons', () => {
 });
 
 /**
+ * Screens navigate, and tests render them without a router around them. Keeping
+ * the navigation surface to `useRouter()` means this four-line double is enough,
+ * and `router.push` being a spy lets a test assert where a tap would lead.
+ */
+jest.mock('expo-router', () => {
+  const router = { push: jest.fn(), replace: jest.fn(), back: jest.fn(), navigate: jest.fn() };
+  return { router, useRouter: () => router, useLocalSearchParams: () => ({}), usePathname: () => '/' };
+});
+
+/**
  * Global test setup.
  *
  * Tests must never hit a real network: any test that forgets to stub `fetch`

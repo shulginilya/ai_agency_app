@@ -20,7 +20,7 @@ function renderUseSystemStatus(options?: Parameters<typeof useSystemStatus>[0]) 
 beforeEach(() => requestLog.clear());
 
 describe('useSystemStatus', () => {
-  it('runs both probes and reports healthy when they pass', async () => {
+  it('runs every probe and reports healthy when they pass', async () => {
     const fetchMock = stubApi(() => fakeResponse({ body: { status: 'ok' } }));
 
     const { result } = renderUseSystemStatus();
@@ -32,7 +32,7 @@ describe('useSystemStatus', () => {
     expect(result.current.lastCheckedAt).toEqual(expect.any(Number));
 
     const calledPaths = fetchMock.mock.calls.map(([url]) => new URL(url as string).pathname);
-    expect(calledPaths).toEqual(expect.arrayContaining(['/healthz', '/readyz']));
+    expect(calledPaths.sort()).toEqual(['/healthz', '/readyz']);
   });
 
   it('polls by default, without needing any options', async () => {
