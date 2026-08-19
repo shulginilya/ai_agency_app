@@ -4,24 +4,25 @@ Expo SDK 54 · React Native 0.81 · TypeScript (strict) · expo-router
 
 ## Demo functionality
 
-One tab — the default screen the app opens to:
+Two tabs:
 
 | Tab | Shows off |
 |---|---|
-| **Agents** | **The agent control plane** — calls your own API (`/healthz`, `/readyz`), shows each call's verdict, latency and raw body, polls every 10s, and logs every request it made. |
+| **Agents** | The agent roster — lists agents from `GET /v1/agents` and opens a chat thread when you tap one. **Default screen.** |
+| **Control plane** | Calls your own API's health checks (`/healthz`, `/readyz`), shows each call's verdict, latency and raw body, polls every 10s, and logs every request it made. |
 
-The screen is light/dark aware and follows the OS appearance setting.
+Both screens are light/dark aware and follow the OS appearance setting.
 
 ## Agent control plane
 
-The Agents tab is the default screen and the proof of concept for driving your agents from the app. It
+The Control plane tab is the proof of concept for driving your agents from the app. It
 talks to the API on `localhost:8000` through a typed client that handles
 timeouts, bounded retries, bearer auth and schema validation in one place — so
 each endpoint you add next is a path, a zod schema and a one-line call.
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000   # your API
-npm run web                                    # then open the Agents tab
+npm run web                                    # then open the Control plane tab
 ```
 
 Point it elsewhere with `EXPO_PUBLIC_API_URL` (see `.env.example`). Left unset,
@@ -39,7 +40,8 @@ matrix: **[docs/control-plane.md](docs/control-plane.md)**.
 app/                    # expo-router: every file here is a route
   _layout.tsx           # root stack + providers (React Query lives here)
   (tabs)/_layout.tsx    # bottom tab bar
-  (tabs)/index.tsx      # Agents / control plane screen (default tab)
+  (tabs)/index.tsx      # Agents screen — the roster (default tab)
+  (tabs)/control-plane.tsx # Control plane screen — health, probes, request log
   +not-found.tsx        # 404 route
 src/
   api/                  # http client, config, errors, schemas, endpoints

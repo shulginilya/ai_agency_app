@@ -14,8 +14,9 @@ day.
 ## The shape of it
 
 ```
-app/(tabs)/index.tsx       Screen: status, probes, agent list, request log (default tab)
-app/agent/[id].tsx         Route wrapper — reads the id, mounts the screen
+app/(tabs)/index.tsx         Screen: agent list (default tab)
+app/(tabs)/control-plane.tsx Screen: status, probes, request log
+app/agent/[id].tsx            Route wrapper — reads the id, mounts the screen
         │
 src/screens/AgentChat.tsx  Screen: one agent — thread, composer, controls
         │
@@ -74,7 +75,7 @@ endpoint yet" notice unless `tools/mock-agent-api.mjs` is running.
 
 ## Talking to an agent
 
-Tapping an agent on the control screen opens `app/agent/[id].tsx`: a thread, a
+Tapping an agent on the Agents screen opens `app/agent/[id].tsx`: a thread, a
 composer, and the start/pause/stop controls in the header. It runs on two
 endpoints the server does not have yet — `tools/mock-agent-api.mjs` implements
 them, so the screen is fully clickable today and the FastAPI side only has to
@@ -283,8 +284,8 @@ production over the public internet should be HTTPS.
 | Contract | `src/api/__tests__/contract.test.ts` | the pinned FastAPI spec still fits through `schemas.ts` |
 | Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, conditional polling, optimistic send + rollback |
 | Components | `src/components/__tests__/*` | probe card states, log rows, message bubbles |
-| Screens | `__tests__/{agents-screen,agent-chat}.test.tsx` | the whole thing with only `fetch` stubbed |
-| Browser | `cypress/e2e/{control-plane,agent-chat}.cy.ts` | real bundle, real HTTP, a reply arriving by itself |
+| Screens | `__tests__/{agents-screen,control-plane-screen,agent-chat}.test.tsx` | the whole thing with only `fetch` stubbed |
+| Browser | `cypress/e2e/{agents,control-plane,agent-chat}.cy.ts` | real bundle, real HTTP, a reply arriving by itself |
 
 `npm test` · `npm run test:coverage` · `npm run e2e` · `npm run verify`
 
