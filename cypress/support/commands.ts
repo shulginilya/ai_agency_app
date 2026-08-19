@@ -39,6 +39,6 @@ Cypress.Commands.add('resetApi', () => {
 Cypress.Commands.add('byTestId', (id: string, options = {}) => cy.get(`[data-testid="${id}"]`, options));
 
 Cypress.Commands.add('visitControlPlane', () => {
-  cy.visit('/agents');
+  cy.visit('/');
   cy.byTestId('system-status').should('not.contain.text', 'unknown');
 });

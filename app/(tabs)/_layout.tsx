@@ -16,20 +16,6 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tasks',
-          tabBarIcon: ({ color, size }) => <Ionicons name="checkbox-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
-          tabBarIcon: ({ color, size }) => <Ionicons name="cloud-download-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="agents"
-        options={{
           title: 'Agents',
           tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
         }}

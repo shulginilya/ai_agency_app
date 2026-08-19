@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import AgentsScreen from '../app/(tabs)/agents';
+import AgentsScreen from '../app/(tabs)/index';
 import { requestLog } from '@/api/log';
 import { fakeResponse } from '@/test-utils/http';
 import { renderWithQuery } from '@/test-utils/render';
