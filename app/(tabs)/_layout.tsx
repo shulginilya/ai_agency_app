@@ -20,6 +20,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="control-plane"
+        options={{
+          title: 'Control plane',
+          tabBarIcon: ({ color, size }) => <Ionicons name="speedometer-outline" size={size} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

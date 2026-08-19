@@ -18,7 +18,7 @@ declare global {
       /** Drives the stub API's failure modes (see tools/mock-agent-api.mjs). */
       setApiState(state: ApiState): Chainable<void>;
       resetApi(): Chainable<void>;
-      /** Opens the control screen and waits for the first verdict to land. */
+      /** Opens the control plane screen and waits for the first verdict to land. */
       visitControlPlane(): Chainable<void>;
       byTestId(
         id: string,
@@ -39,6 +39,6 @@ Cypress.Commands.add('resetApi', () => {
 Cypress.Commands.add('byTestId', (id: string, options = {}) => cy.get(`[data-testid="${id}"]`, options));
 
 Cypress.Commands.add('visitControlPlane', () => {
-  cy.visit('/');
+  cy.visit('/control-plane');
   cy.byTestId('system-status').should('not.contain.text', 'unknown');
 });
