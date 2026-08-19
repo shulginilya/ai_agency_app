@@ -14,7 +14,7 @@ day.
 ## The shape of it
 
 ```
-app/(tabs)/agents.tsx      Screen: status, probes, agent list, request log
+app/(tabs)/index.tsx       Screen: status, probes, agent list, request log (default tab)
 app/agent/[id].tsx         Route wrapper — reads the id, mounts the screen
         │
 src/screens/AgentChat.tsx  Screen: one agent — thread, composer, controls

@@ -11,14 +11,6 @@ module.exports = {
     'app/**/*.tsx',
     '!src/test-utils/**',
     '!**/__tests__/**',
-    // Pre-existing scaffolding (the tasks + product feed demo) is out of scope for
-    // this proof of concept. Delete these lines as they get tests of their own.
-    '!src/api/products.ts',
-    '!src/hooks/useProducts.ts',
-    '!src/hooks/useTasks.ts',
-    '!src/storage/tasks.ts',
-    '!src/components/{ProductCard,TaskItem,EmptyState}.tsx',
-    '!app/(tabs)/{index,feed}.tsx',
     '!app/+not-found.tsx',
     // Router layouts and route wrappers are framework wiring, exercised by the
     // e2e run instead. The screen a route mounts lives in src/ and is tested there.

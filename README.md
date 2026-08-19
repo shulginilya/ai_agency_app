@@ -4,19 +4,17 @@ Expo SDK 54 · React Native 0.81 · TypeScript (strict) · expo-router
 
 ## Demo functionality
 
-Three tabs, deliberately covering the things almost every app needs:
+One tab — the default screen the app opens to:
 
 | Tab | Shows off |
 |---|---|
-| **Tasks** | Local state, list rendering, text input, filtering, and **persistence** — tasks are saved to device storage and survive an app restart. |
-| **Feed** | **Networking** — fetches from a public REST API with loading / error / empty states and pull-to-refresh. |
 | **Agents** | **The agent control plane** — calls your own API (`/healthz`, `/readyz`), shows each call's verdict, latency and raw body, polls every 10s, and logs every request it made. |
 
-All screens are light/dark aware and follow the OS appearance setting.
+The screen is light/dark aware and follows the OS appearance setting.
 
 ## Agent control plane
 
-The Agents tab is the proof of concept for driving your agents from the app. It
+The Agents tab is the default screen and the proof of concept for driving your agents from the app. It
 talks to the API on `localhost:8000` through a typed client that handles
 timeouts, bounded retries, bearer auth and schema validation in one place — so
 each endpoint you add next is a path, a zod schema and a one-line call.
@@ -41,19 +39,15 @@ matrix: **[docs/control-plane.md](docs/control-plane.md)**.
 app/                    # expo-router: every file here is a route
   _layout.tsx           # root stack + providers (React Query lives here)
   (tabs)/_layout.tsx    # bottom tab bar
-  (tabs)/index.tsx      # Tasks screen
-  (tabs)/feed.tsx       # Feed screen
-  (tabs)/agents.tsx     # Agents / control plane screen
+  (tabs)/index.tsx      # Agents / control plane screen (default tab)
   +not-found.tsx        # 404 route
 src/
   api/                  # http client, config, errors, schemas, endpoints
   components/           # presentational components
-  hooks/                # useSystemStatus, useAgents, useTasks, useProducts
+  hooks/                # useSystemStatus, useAgents, useMessages
   query/                # React Query client, provider, cache keys
-  storage/tasks.ts      # AsyncStorage read/write
   test-utils/           # fetch doubles + render helpers (test-only)
   theme.ts              # colors, spacing, radii — one place to restyle
-  types.ts
 cypress/                # end-to-end specs, run against the web build
 tools/mock-agent-api.mjs# zero-dependency stub of the control API, for e2e
 docs/control-plane.md   # the API layer in detail

@@ -13,7 +13,7 @@ describe('Talking to an agent', () => {
   });
 
   it('opens a thread from the agents list', () => {
-    cy.visit('/agents');
+    cy.visit('/');
     cy.byTestId('agent-row-a1').click();
 
     cy.byTestId('chat-agent-name').should('contain.text', 'Research agent');

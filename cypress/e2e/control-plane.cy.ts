@@ -81,7 +81,7 @@ describe('Agent control plane', () => {
 
   it('survives a slow API without hanging the screen', () => {
     cy.setApiState({ latencyMs: 1_200 });
-    cy.visit('/agents');
+    cy.visit('/');
 
     cy.byTestId('system-status').should('contain.text', 'healthy');
     cy.byTestId('probe-latency-healthz')
