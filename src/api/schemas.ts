@@ -26,9 +26,18 @@ export const AgentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   status: AgentStatusSchema,
-  /** ISO-8601. Optional so the first version of the endpoint can omit it. */
-  updated_at: z.string().optional(),
-  description: z.string().optional(),
+  /**
+   * ISO-8601. Optional so the first version of the endpoint can omit it.
+   *
+   * `.nullish()` rather than `.optional()`: a Pydantic `str | None = None`
+   * serialises as `"updated_at": null` instead of leaving the key out, so a
+   * field that is merely *absent* in our heads arrives as an explicit null on
+   * the wire. Accepting both spellings of "no value" costs nothing here, and
+   * only one of them is in our gift. `src/api/contract.ts` fails the build if
+   * the server starts nulling a field we only made optional.
+   */
+  updated_at: z.string().nullish(),
+  description: z.string().nullish(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
 
@@ -79,9 +88,10 @@ export const MessageSchema = z.object({
   created_at: z.string().min(1),
   /**
    * Set by the server on a message it has accepted but not finished producing.
-   * The client polls while any message carries it.
+   * The client polls while any message carries it. `.nullish()` for the same
+   * reason as `Agent.updated_at` — `bool | None = None` puts a null on the wire.
    */
-  pending: z.boolean().optional(),
+  pending: z.boolean().nullish(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

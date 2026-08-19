@@ -1,0 +1,609 @@
+{
+  "components": {
+    "schemas": {
+      "AgentInfo": {
+        "description": "One subagent the server can invoke.\n\nDeliberately not the whole `AgentDefinition`: `prompt` is the agent's system prompt\nand is an implementation detail, not a wire contract -- publishing it would make\nevery prompt tweak a breaking API change. What is here is what a caller needs to\nchoose an agent and predict what it can do.",
+        "properties": {
+          "availability": {
+            "description": "'always' -- loaded on every run. 'team' -- only present when the run is started with team=true.",
+            "enum": [
+              "always",
+              "team"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "description": {
+            "description": "When the agent should be used. This is what drives the model's routing.",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "description": "Stable identity. Equal to `name` today; it exists separately so a worker can be renamed without breaking clients that key off it.",
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "invocations": {
+            "default": 0,
+            "description": "Times this agent has been started in this process. Resets on restart.",
+            "title": "Invocations",
+            "type": "integer"
+          },
+          "max_turns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Turn cap for one invocation. None means the run's default applies.",
+            "title": "Max Turns"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model alias ('sonnet', 'opus', ...) or full ID. None inherits the run's.",
+            "title": "Model"
+          },
+          "name": {
+            "description": "Key the manager invokes this agent by, e.g. 'reviewer'.",
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentStatus",
+            "description": "Live state in THIS server process, from the subagent hook stream. Runs are in-process, so an agent reads `running` only while this server is actually invoking it -- with uvicorn --workers N each worker reports its own view."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tools the agent may use. None means it inherits the main thread's set.",
+            "title": "Tools"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UTC time of the last status transition, or null if this agent has not run in this process. Not a definition timestamp -- editing team.py does not move it.",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "description",
+          "availability"
+        ],
+        "title": "AgentInfo",
+        "type": "object"
+      },
+      "AgentStatus": {
+        "description": "The app renders one pill per value. Adding a member is a breaking change\nfor any client that has not shipped support for it — which is the whole\npoint of it being an enum in the spec rather than a free string.\n\n`(str, Enum)` rather than `enum.StrEnum`: StrEnum is 3.11+, and this project\ndeclares `requires-python = \">=3.10\"`. On 3.10 the import alone raises and takes\nthe whole API down with it. The two serialise identically here.\n\nNot every member is reachable today. What the SDK hook stream can actually tell us\nis start, stop and delegation failure, which yields `idle`, `running` and `error`.\n`starting`, `paused` and `stopped` are reserved -- kept because removing a member is\nas breaking as adding one, but nothing emits them:\n\n- `starting` would have to come from the `Agent` PreToolUse, which also fires for\n  calls the guardrail then denies. There is no matching event on the deny path, so\n  the count would leak and wedge an agent in `starting` forever. Left unemitted\n  rather than shipped wedge-prone.\n- `paused` / `stopped` have no source at all: the SDK exposes `interrupt()` on the\n  main session, not on individual workers, so a worker is never paused or stopped\n  as a distinct state -- it is running or it is gone.",
+        "enum": [
+          "idle",
+          "starting",
+          "running",
+          "paused",
+          "error",
+          "stopped"
+        ],
+        "title": "AgentStatus",
+        "type": "string"
+      },
+      "AgentsResponse": {
+        "description": "Body of `GET /v1/agents`: the subagent roster.\n\nOnly subagents are listed. The manager is not one -- it is the main thread agent you\ntalk to, so it has no name to invoke and nothing to discover; `team=true` on\n`POST /v1/runs` is what selects it. See `agents/team.py`.\n\nKept an envelope rather than a bare array so fields can be added without breaking\nclients, and because a top-level JSON array is awkward to extend.",
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentInfo"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "count": {
+            "description": "Length of `agents`. Redundant on purpose -- it saves clients a scan.",
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agents",
+          "count"
+        ],
+        "title": "AgentsResponse",
+        "type": "object"
+      },
+      "Health": {
+        "description": "Liveness. Cheap and dependency-free by design -- a liveness probe that checks\ndependencies restarts the process when a dependency blips, which is backwards.",
+        "properties": {
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "Problem": {
+        "description": "RFC 9457 problem document. Declared so it shows up in the OpenAPI schema; the\nresponses themselves are built in `errors.py`.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "Readiness": {
+        "description": "Readiness. Checks the things a run actually needs before accepting traffic.",
+        "properties": {
+          "capacity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Capacity",
+            "type": "object"
+          },
+          "checks": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks",
+          "capacity"
+        ],
+        "title": "Readiness",
+        "type": "object"
+      },
+      "RunRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/runs`.",
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dev",
+                  "sandboxed",
+                  "eval"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override the server's configured profile for this run.",
+            "title": "Profile"
+          },
+          "prompt": {
+            "description": "What the agent should do.",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "team": {
+            "default": false,
+            "description": "Run the manager agent, which may delegate to the workers in agents/team.py.",
+            "title": "Team",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "RunRequest",
+        "type": "object"
+      },
+      "RunResponse": {
+        "description": "Result of a completed run. `is_error=True` is still a 200: the request\nsucceeded, the agent did not. Transport failures get a 5xx problem instead.",
+        "properties": {
+          "delegated_to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Delegated To",
+            "type": "array"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "is_error": {
+            "title": "Is Error",
+            "type": "boolean"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "num_turns": {
+            "title": "Num Turns",
+            "type": "integer"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tool_events": {
+            "items": {
+              "$ref": "#/components/schemas/ToolEvent"
+            },
+            "title": "Tool Events",
+            "type": "array"
+          },
+          "tools_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Used",
+            "type": "array"
+          },
+          "total_cost_usd": {
+            "title": "Total Cost Usd",
+            "type": "number"
+          },
+          "usage": {
+            "additionalProperties": true,
+            "title": "Usage",
+            "type": "object"
+          }
+        },
+        "required": [
+          "run_id",
+          "profile",
+          "model",
+          "is_error",
+          "output",
+          "num_turns",
+          "duration_ms",
+          "total_cost_usd",
+          "usage",
+          "tools_used",
+          "delegated_to",
+          "tool_events",
+          "summary"
+        ],
+        "title": "RunResponse",
+        "type": "object"
+      },
+      "ToolEvent": {
+        "description": "One entry of the run's tool trace.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "title": "Detail",
+            "type": "object"
+          },
+          "phase": {
+            "enum": [
+              "pre",
+              "post",
+              "blocked",
+              "failed"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "phase",
+          "at"
+        ],
+        "title": "ToolEvent",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      },
+      "HTTPBearer": {
+        "description": "Same value as X-API-Key.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "HTTP surface for the `agency` harness.\n\nEvery endpoint runs the same code path as the CLI: options are built by\n`agency.options.build_options`, so a run over HTTP and a run from `agency run` are\nconfigured identically. Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)\nproblem documents.\n",
+    "title": "agency",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/v1/agents": {
+      "get": {
+        "operationId": "list_agents_v1_agents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentsResponse"
+                }
+              }
+            },
+            "description": "The subagent roster: each agent's model, tools and turn cap, plus its live status in this process."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List the agents this server can invoke",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/runs": {
+      "post": {
+        "operationId": "create_run_v1_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            },
+            "description": "The completed run, including its tool and delegation trace."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The agent loop failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No run slot available; retry"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Run exceeded the server timeout"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run one prompt to completion",
+        "tags": [
+          "runs"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Liveness and readiness probes. Never authenticated.",
+      "name": "health"
+    },
+    {
+      "description": "Execute agent runs.",
+      "name": "runs"
+    },
+    {
+      "description": "Agent discovery: which subagents this server can invoke.",
+      "name": "agents"
+    }
+  ]
+}
