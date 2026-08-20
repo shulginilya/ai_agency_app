@@ -79,17 +79,10 @@
             "title": "Tools"
           },
           "updated_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "UTC time of the last status transition, or null if this agent has not run in this process. Not a definition timestamp -- editing team.py does not move it.",
-            "title": "Updated At"
+            "description": "UTC time this agent entered its current status. Never null: an agent that has not run reports the time this server started observing, because it has genuinely been idle since then. Use `invocations == 0` to tell 'never ran' from 'ran and finished' -- do not infer it from the timestamp. Not a definition timestamp: editing team.py does not move it.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
           }
         },
         "required": [
@@ -97,7 +90,8 @@
           "name",
           "status",
           "description",
-          "availability"
+          "availability",
+          "updated_at"
         ],
         "title": "AgentInfo",
         "type": "object"
@@ -136,6 +130,19 @@
           "count"
         ],
         "title": "AgentsResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
         "type": "object"
       },
       "Health": {
@@ -409,6 +416,46 @@
         ],
         "title": "ToolEvent",
         "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -486,6 +533,16 @@
               }
             },
             "description": "The subagent roster: each agent's model, tools and turn cap, plus its live status in this process."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
           }
         },
         "security": [
@@ -497,6 +554,81 @@
           }
         ],
         "summary": "List the agents this server can invoke",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}": {
+      "get": {
+        "description": "One roster entry, resolved by id.\n\nSame data and same status source as the collection, so a client can poll a single\nagent without pulling and filtering the whole roster.\n\n404, not an empty 200: an unknown id is a caller error -- a stale name pinned in a\nconfig, or a typo -- and returning a body for it would let that error survive as far\nas `POST /v1/runs`, where it fails much less legibly. The bound on `agent_id` keeps\na junk path segment out of the error body; over it, the 422 is the honest answer,\nsince no agent name is 64 characters long.",
+        "operationId": "get_agent_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "description": "The agent's `id` from `GET /v1/agents` (equal to its name today).",
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "description": "The agent's `id` from `GET /v1/agents` (equal to its name today).",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentInfo"
+                }
+              }
+            },
+            "description": "The agent's model, tools, turn cap and availability, plus its live status in this process."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No agent with that id"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retrieve one agent by id",
         "tags": [
           "agents"
         ]
