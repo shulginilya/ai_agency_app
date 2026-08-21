@@ -165,6 +165,48 @@
         "title": "Health",
         "type": "object"
       },
+      "MessageRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/sessions/{session_id}/messages`.\n\nOnly a prompt. `profile` and `team` are absent on purpose and, because of\n`extra=\"forbid\"`, sending either is a 422 rather than a silent no-op: they were\nbaked into the `ClaudeAgentOptions` this session connected with, so there is no\nhonest way to honour them mid-conversation. Open a new session instead.",
+        "properties": {
+          "prompt": {
+            "description": "The next turn of the conversation.",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "MessageRequest",
+        "type": "object"
+      },
+      "MessageResponse": {
+        "description": "Result of one turn.\n\nThe turn's result is nested as `run` rather than flattened alongside `session_id`,\nso it is the *same* object `POST /v1/runs` returns -- a client can render a turn and\na one-shot run with one code path, and a field added to `RunResponse` cannot collide\nwith a session field.",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunResponse"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turn": {
+            "description": "1-based index of this turn within the session. `run.run_id` is per-turn.",
+            "title": "Turn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn",
+          "run"
+        ],
+        "title": "MessageResponse",
+        "type": "object"
+      },
       "Problem": {
         "description": "RFC 9457 problem document. Declared so it shows up in the OpenAPI schema; the\nresponses themselves are built in `errors.py`.",
         "properties": {
@@ -380,6 +422,129 @@
           "summary"
         ],
         "title": "RunResponse",
+        "type": "object"
+      },
+      "SessionCreateRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/sessions`. Every field is optional: the server's own profile\nand a solo (non-team) agent are the defaults, same as `POST /v1/runs`.",
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dev",
+                  "sandboxed",
+                  "eval"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pin the profile for the whole session. Fixed at open time.",
+            "title": "Profile"
+          },
+          "team": {
+            "default": false,
+            "description": "Open the session as the manager agent, which may delegate to the workers in agents/team.py. Fixed at open time.",
+            "title": "Team",
+            "type": "boolean"
+          }
+        },
+        "title": "SessionCreateRequest",
+        "type": "object"
+      },
+      "SessionInfo": {
+        "description": "One open session. Deliberately not the conversation itself: the transcript is not\nstored here (each turn is persisted as its own run record, keyed by `run_id`), and\nthe SDK client behind it is not something a client can be handed a view of.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the server may reap this session for idleness. Null when the TTL is disabled. A floor, not a promise: reaping happens on request, so a session may outlive it on an idle server.",
+            "title": "Expires At"
+          },
+          "id": {
+            "description": "Opaque handle. Mint it here; do not construct one.",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_active_at": {
+            "description": "When the last turn finished. What the idle TTL is measured from.",
+            "format": "date-time",
+            "title": "Last Active At",
+            "type": "string"
+          },
+          "profile": {
+            "description": "Profile the session connected with. Fixed for its life.",
+            "title": "Profile",
+            "type": "string"
+          },
+          "status": {
+            "description": "'busy' while a turn is in flight. A message sent to a busy session is a 409, not a queued turn.",
+            "enum": [
+              "idle",
+              "busy"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "team": {
+            "description": "Whether this session runs the manager agent.",
+            "title": "Team",
+            "type": "boolean"
+          },
+          "turns": {
+            "description": "Messages completed in this session so far.",
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "profile",
+          "team",
+          "status",
+          "turns",
+          "created_at",
+          "last_active_at"
+        ],
+        "title": "SessionInfo",
+        "type": "object"
+      },
+      "SessionsResponse": {
+        "description": "Body of `GET /v1/sessions`. An envelope for the same reason `AgentsResponse` is\none: a bare array cannot grow a field.",
+        "properties": {
+          "count": {
+            "description": "Length of `sessions`.",
+            "title": "Count",
+            "type": "integer"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionInfo"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "count"
+        ],
+        "title": "SessionsResponse",
         "type": "object"
       },
       "ToolEvent": {
@@ -722,6 +887,420 @@
           "runs"
         ]
       }
+    },
+    "/v1/sessions": {
+      "get": {
+        "description": "What this process is holding open, oldest first.\n\nPer-process, like `GET /v1/agents`' status: sessions are local subprocesses, so with\nmore than one uvicorn worker each worker lists only its own. It is an operational\nview -- \"what is this box holding\" -- not a user's conversation history.",
+        "operationId": "list_sessions_v1_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsResponse"
+                }
+              }
+            },
+            "description": "Every session this process currently holds open."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such session; it was closed or expired"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List open sessions",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "post": {
+        "description": "Connect a session and hold it open.\n\n201, not 200: this creates a server-side resource -- a live SDK subprocess -- that\nthe caller is now responsible for closing. `expires_at` in the body is the safety\nnet if they do not.\n\nThe profile is resolved here rather than in the store, so what comes back names the\nprofile the session is actually running, not `null` meaning \"whatever the server\nwas configured with at the time\".",
+        "operationId": "open_session_v1_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "The new session. Send messages to it, then close it."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such session; it was closed or expired"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No session slot available; retry"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Open a conversation",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}": {
+      "delete": {
+        "description": "Release the subprocess and the context.\n\nRefuses while a turn is in flight rather than tearing the client out from under it:\nthat would surface to the caller mid-turn as a 502 with no explanation. The wait is\nbounded by the turn's own timeout, and a client that has given up entirely does not\nneed this endpoint at all -- the idle reaper collects the session either way.\n\n204 and idempotent-ish: a `DELETE` of an id that has already been closed or reaped\nis a 404 from `sessions.get`, which is the truthful answer to \"is this handle live\".",
+        "operationId": "close_session_v1_sessions__session_id__delete",
+        "parameters": [
+          {
+            "description": "The `id` returned by `POST /v1/sessions`.",
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "description": "The `id` returned by `POST /v1/sessions`.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such session; it was closed or expired"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A turn is in flight; wait for it to finish"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Close a conversation",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "get": {
+        "description": "Poll one session. `status` is what a client waits on before sending a turn, and\na 404 is the honest answer for a handle that has expired -- see `SessionStore.get`.",
+        "operationId": "get_session_v1_sessions__session_id__get",
+        "parameters": [
+          {
+            "description": "The `id` returned by `POST /v1/sessions`.",
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "description": "The `id` returned by `POST /v1/sessions`.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "The session's status, turn count and expiry."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such session; it was closed or expired"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retrieve one session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/messages": {
+      "post": {
+        "description": "One turn of the conversation.\n\nA turn takes a `RunSlots` slot as well as the session lock. An open session is idle\nweight -- a subprocess and some memory -- but a *running* turn is exactly as\nexpensive as a `POST /v1/runs`, so the two endpoints share one bound on concurrent\nmodel work. Without that, N sessions would be N ways around the run cap.\n\n`is_error=True` inside `run` is still a 200, same contract as `POST /v1/runs`. What\ndiffers is the failure handling: a timeout or a transport error cancels the drain\nmid-stream and leaves the SDK client in an indeterminate state, so `SessionStore`\ncloses the session on the way out. The 504 and 502 bodies say so, because \"retry the\nsame session id\" would otherwise be the obvious and wrong next move.",
+        "operationId": "send_message_v1_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "description": "The `id` returned by `POST /v1/sessions`.",
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "description": "The `id` returned by `POST /v1/sessions`.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "The completed turn, including its tool and delegation trace."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such session; it was closed or expired"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A turn is already in flight on this session"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request failed validation"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The agent loop failed; the session was closed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No run slot available; retry"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Turn exceeded the server timeout"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send one message and get the reply",
+        "tags": [
+          "sessions"
+        ]
+      }
     }
   },
   "tags": [
@@ -736,6 +1315,10 @@
     {
       "description": "Agent discovery: which subagents this server can invoke.",
       "name": "agents"
+    },
+    {
+      "description": "Multi-turn conversations. A session holds a live agent context open across requests; close it when you are done, or it is reaped when idle.",
+      "name": "sessions"
     }
   ]
 }
