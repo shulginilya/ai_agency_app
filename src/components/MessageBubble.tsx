@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import type { Message } from '@/api/schemas';
+import { blockedEvents, runHeadline, toolsUsed, type TranscriptEntry } from '@/chat/transcript';
 import { radius, spacing, useTheme } from '@/theme';
 
 function formatTime(iso: string): string {
@@ -8,31 +8,38 @@ function formatTime(iso: string): string {
 }
 
 /**
- * One turn in the thread.
+ * One line of the conversation.
  *
  * Three roles, three treatments: what you said sits right and filled, what the
  * agent said sits left on a card, and what the control plane said runs centred
  * and quiet — an event, not a voice.
+ *
+ * An agent line carries its run underneath it: turns, wall time, cost, model,
+ * who it delegated to, and which tools it touched. That is the part a one-shot
+ * `POST /v1/runs` and a session turn have in common, and it is most of the
+ * reason to look at this screen rather than run the CLI.
  */
-export function MessageBubble({ message }: { message: Message }) {
+export function MessageBubble({ entry }: { entry: TranscriptEntry }) {
   const { colors } = useTheme();
-  const time = formatTime(message.created_at);
+  const time = formatTime(entry.created_at);
 
-  if (message.role === 'system') {
+  if (entry.role === 'system') {
     return (
-      <View testID={`message-${message.id}`} style={styles.systemRow}>
-        <Text style={[styles.systemText, { color: colors.textMuted }]}>{message.content}</Text>
+      <View testID={`message-${entry.id}`} style={styles.systemRow}>
+        <Text style={[styles.systemText, { color: colors.textMuted }]}>{entry.content}</Text>
       </View>
     );
   }
 
-  const mine = message.role === 'user';
+  const mine = entry.role === 'user';
+  const tools = entry.run ? toolsUsed(entry.run) : [];
+  const blocked = entry.run ? blockedEvents(entry.run) : [];
 
   return (
     <View
-      testID={`message-${message.id}`}
+      testID={`message-${entry.id}`}
       accessibilityRole="text"
-      accessibilityLabel={`${mine ? 'You' : 'Agent'}: ${message.content}`}
+      accessibilityLabel={`${mine ? 'You' : 'Agent'}: ${entry.content}`}
       style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}
     >
       <View
@@ -40,16 +47,49 @@ export function MessageBubble({ message }: { message: Message }) {
           styles.bubble,
           mine
             ? { backgroundColor: colors.accent, borderColor: colors.accent, borderBottomRightRadius: radius.sm }
-            : { backgroundColor: colors.card, borderColor: colors.border, borderBottomLeftRadius: radius.sm },
+            : {
+                backgroundColor: colors.card,
+                borderColor: entry.failed ? colors.danger : colors.border,
+                borderBottomLeftRadius: radius.sm,
+              },
         ]}
       >
-        <Text style={[styles.content, { color: mine ? '#fff' : colors.text }]}>{message.content}</Text>
+        {entry.failed ? (
+          <Text testID={`message-failed-${entry.id}`} style={[styles.failed, { color: colors.danger }]}>
+            The agent reported an error
+          </Text>
+        ) : null}
+
+        <Text style={[styles.content, { color: mine ? '#fff' : colors.text }]}>{entry.content}</Text>
+
+        {entry.run ? (
+          <View style={[styles.trace, { borderTopColor: colors.border }]}>
+            <Text testID={`run-headline-${entry.id}`} style={[styles.traceText, { color: colors.textMuted }]}>
+              {runHeadline(entry.run)}
+            </Text>
+            {tools.length > 0 ? (
+              <Text testID={`run-tools-${entry.id}`} style={[styles.traceText, { color: colors.textMuted }]}>
+                tools: {tools.join(', ')}
+              </Text>
+            ) : null}
+            {blocked.length > 0 ? (
+              <Text testID={`run-blocked-${entry.id}`} style={[styles.traceText, { color: colors.warning }]}>
+                {blocked.map((event) => `${event.tool} ${event.phase}`).join(', ')}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={styles.meta}>
-          {time ? (
-            <Text style={[styles.time, { color: mine ? '#FFFFFFB3' : colors.textMuted }]}>{time}</Text>
+          {entry.turn !== undefined ? (
+            <Text style={[styles.time, { color: mine ? '#FFFFFFB3' : colors.textMuted }]}>turn {entry.turn}</Text>
           ) : null}
-          {message.pending ? (
-            <Text testID={`message-pending-${message.id}`} style={[styles.time, { color: mine ? '#FFFFFFB3' : colors.textMuted }]}>
+          {time ? <Text style={[styles.time, { color: mine ? '#FFFFFFB3' : colors.textMuted }]}>{time}</Text> : null}
+          {entry.pending ? (
+            <Text
+              testID={`message-pending-${entry.id}`}
+              style={[styles.time, { color: mine ? '#FFFFFFB3' : colors.textMuted }]}
+            >
               sending…
             </Text>
           ) : null}
@@ -71,7 +111,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     gap: 2,
   },
+  failed: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
   content: { fontSize: 15, lineHeight: 21 },
+  trace: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.sm, paddingTop: spacing.xs, gap: 2 },
+  traceText: { fontSize: 11, fontFamily: 'monospace' },
   meta: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'flex-end' },
   time: { fontSize: 11 },
   systemRow: { alignItems: 'center', paddingVertical: spacing.sm },

@@ -2,13 +2,14 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import AgentsScreen from '../app/(tabs)/index';
 import { requestLog } from '@/api/log';
+import { agentInfo } from '@/test-utils/fixtures';
 import { fakeResponse } from '@/test-utils/http';
 import { renderWithQuery } from '@/test-utils/render';
 
 /**
  * Integration test for the agent roster: the real screen, real hooks, real
- * client — only `fetch` is stubbed. This is the test that would catch a
- * broken wiring between any two of those layers.
+ * client — only `fetch` is stubbed. This is the test that would catch a broken
+ * wiring between any two of those layers.
  */
 type Routes = Record<string, () => Response>;
 
@@ -23,42 +24,65 @@ function stubApi(routes: Routes) {
   return fetchMock;
 }
 
-const AGENTS: Routes = {
-  '/v1/agents': () => fakeResponse({ body: [{ id: 'a1', name: 'Research agent', status: 'running' }] }),
+const ROSTER: Routes = {
+  '/v1/agents': () =>
+    fakeResponse({
+      body: {
+        agents: [agentInfo({ status: 'running' }), agentInfo({ id: 'planner', name: 'planner', availability: 'team' })],
+        count: 2,
+      },
+    }),
 };
 
 beforeEach(() => requestLog.clear());
 
 describe('Agents screen', () => {
-  it('lists the agents GET /v1/agents answers with', async () => {
-    stubApi(AGENTS);
+  it('lists the roster GET /v1/agents answers with', async () => {
+    stubApi(ROSTER);
     renderWithQuery(<AgentsScreen />);
 
-    await waitFor(() => expect(screen.getByTestId('agent-row-a1')).toBeTruthy());
-    expect(screen.getByTestId('agent-status-a1')).toHaveTextContent('running');
+    await waitFor(() => expect(screen.getByTestId('agent-row-researcher')).toBeTruthy());
+    expect(screen.getByTestId('agent-status-researcher')).toHaveTextContent('running');
     expect(screen.queryByTestId('agents-error')).toBeNull();
   });
 
-  it('shows an empty state when there are no agents', async () => {
-    stubApi({ '/v1/agents': () => fakeResponse({ body: [] }) });
+  it('shows what decides whether the manager will route work here', async () => {
+    stubApi(ROSTER);
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('agent-meta-researcher')).toBeTruthy());
+    expect(screen.getByTestId('agent-meta-researcher')).toHaveTextContent(/sonnet/);
+    expect(screen.getByTestId('agent-meta-researcher')).toHaveTextContent(/2 tools/);
+    expect(screen.getByTestId('agent-meta-researcher')).toHaveTextContent(/3 invocations/);
+  });
+
+  it('marks the agents a solo run will never reach', async () => {
+    stubApi(ROSTER);
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('agent-team-planner')).toBeTruthy());
+    expect(screen.queryByTestId('agent-team-researcher')).toBeNull();
+  });
+
+  it('shows an empty state when the server has no agents', async () => {
+    stubApi({ '/v1/agents': () => fakeResponse({ body: { agents: [], count: 0 } }) });
     renderWithQuery(<AgentsScreen />);
 
     await waitFor(() => expect(screen.getByTestId('agents-empty')).toBeTruthy());
   });
 
-  it('surfaces a failing agent list as an error, not as an empty list', async () => {
-    stubApi({
-      '/v1/agents': () => fakeResponse({ status: 500, body: { detail: 'boom' } }),
-    });
+  it('surfaces a failing roster as an error, not as an empty list', async () => {
+    stubApi({ '/v1/agents': () => fakeResponse({ status: 500, body: { detail: 'boom' } }) });
     renderWithQuery(<AgentsScreen />);
 
     await waitFor(() => expect(screen.getByTestId('agents-error')).toBeTruthy());
-    expect(screen.queryByTestId('agent-row-a1')).toBeNull();
+    expect(screen.getByTestId('agents-error')).toHaveTextContent(/boom/);
+    expect(screen.queryByTestId('agent-row-researcher')).toBeNull();
   });
 
-  it('opens the chat for the agent you tap', async () => {
+  it('opens the detail screen for the agent you tap', async () => {
     stubApi({
-      '/v1/agents': () => fakeResponse({ body: [{ id: 'a 1', name: 'Research agent', status: 'running' }] }),
+      '/v1/agents': () => fakeResponse({ body: { agents: [agentInfo({ id: 'a 1', name: 'a 1' })], count: 1 } }),
     });
     renderWithQuery(<AgentsScreen />);
 

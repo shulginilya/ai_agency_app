@@ -10,5 +10,8 @@
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
   // Cypress specs have their own tsconfig: their `expect` is Chai, not Jest, and
   // mixing the two global type sets produces nonsense errors in both.
-  "exclude": ["node_modules", "cypress", "cypress.config.ts", "dist", ".expo"]
+  // `_to_delete/` is the graveyard for files the device bridge could not `rm`.
+  // Nothing imports them and half reference modules that are gone, so checking
+  // them only produces noise that hides real errors.
+  "exclude": ["node_modules", "cypress", "cypress.config.ts", "dist", ".expo", "_to_delete"]
 }

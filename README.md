@@ -4,25 +4,33 @@ Expo SDK 54 · React Native 0.81 · TypeScript (strict) · expo-router
 
 ## Demo functionality
 
-Two tabs:
+Three tabs:
 
 | Tab | Shows off |
 |---|---|
-| **Agents** | The agent roster — lists agents from `GET /v1/agents` and opens a chat thread when you tap one. **Default screen.** |
-| **Control plane** | Calls your own API's health checks (`/healthz`, `/readyz`), shows each call's verdict, latency and raw body, polls every 10s, and logs every request it made. |
+| **Agents** | The subagent roster from `GET /v1/agents` — status, model, tools, turn cap, and whether an agent is loaded on every run or only on a team run. Read-only, because the API is. **Default screen.** |
+| **Conversation** | Sends work: a multi-turn session (`/v1/sessions`) or a one-shot run (`POST /v1/runs`), with each reply's cost, tool trace and delegation underneath it. |
+| **Control plane** | Health checks (`/healthz`, `/readyz`) with free run/session slots, every open session with a close button, and a log of every request the app made. |
 
-Both screens are light/dark aware and follow the OS appearance setting.
+All three are light/dark aware and follow the OS appearance setting.
 
 ## Agent control plane
 
-The Control plane tab is the proof of concept for driving your agents from the app. It
-talks to the API on `localhost:8000` through a typed client that handles
-timeouts, bounded retries, bearer auth and schema validation in one place — so
-each endpoint you add next is a path, a zod schema and a one-line call.
+The app is a consumer of the `agency` HTTP API on `localhost:8000`, through a
+typed client that handles timeouts, bounded retries, bearer auth and schema
+validation in one place — so each endpoint you add next is a path, a zod schema
+and a one-line call.
+
+What the API offers, and what the app therefore does: a read-only roster
+(`/v1/agents`), one-shot runs (`POST /v1/runs`), and conversations
+(`/v1/sessions`, one turn at a time, `profile` and `team` fixed at open time).
+There is no start/stop/pause on an agent and no per-agent message thread — a
+worker is running or it is gone, and work reaches it by delegation from a team
+run.
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000   # your API
-npm run web                                    # then open the Control plane tab
+npm run web                                    # or: npm run mock:api, for the stub
 ```
 
 Point it elsewhere with `EXPO_PUBLIC_API_URL` (see `.env.example`). Left unset,
@@ -41,12 +49,15 @@ app/                    # expo-router: every file here is a route
   _layout.tsx           # root stack + providers (React Query lives here)
   (tabs)/_layout.tsx    # bottom tab bar
   (tabs)/index.tsx      # Agents screen — the roster (default tab)
-  (tabs)/control-plane.tsx # Control plane screen — health, probes, request log
+  (tabs)/chat.tsx       # Conversation screen — sessions and one-shot runs
+  (tabs)/control-plane.tsx # Control plane — health, capacity, sessions, request log
+  agent/[id].tsx        # One roster entry, in full
   +not-found.tsx        # 404 route
 src/
   api/                  # http client, config, errors, schemas, endpoints
+  chat/                 # the transcript — client-side, since the server keeps none
   components/           # presentational components
-  hooks/                # useSystemStatus, useAgents, useMessages
+  hooks/                # useSystemStatus, useAgents, useSessions, useConversation
   query/                # React Query client, provider, cache keys
   test-utils/           # fetch doubles + render helpers (test-only)
   theme.ts              # colors, spacing, radii — one place to restyle
@@ -71,7 +82,7 @@ Scripts: `npm start` · `npm run ios` · `npm run android` · `npm run web` · `
 ## Tests
 
 ```bash
-npm test                # Jest unit + integration (101 tests)
+npm test                # Jest unit + integration (212 tests)
 npm run test:coverage   # same, with coverage thresholds enforced
 npm run e2e             # Cypress against the Expo web build + the stub API
 npm run verify          # typecheck + coverage + e2e — what CI should run

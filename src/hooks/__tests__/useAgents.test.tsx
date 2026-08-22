@@ -1,9 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { useAgentCommand, useAgents } from '@/hooks/useAgents';
+import { useAgent, useAgents } from '@/hooks/useAgents';
+import { qk } from '@/query/keys';
+import { agentInfo } from '@/test-utils/fixtures';
 import { fakeResponse } from '@/test-utils/http';
 import { createTestQueryClient, QueryWrapper } from '@/test-utils/render';
 
-const AGENT = { id: 'a1', name: 'Research agent', status: 'running' };
+const AGENT = agentInfo();
 
 function stub(handler: (url: string, init?: RequestInit) => Response) {
   const fetchMock = jest.fn(async (url: string, init?: RequestInit) => handler(url, init));
@@ -19,8 +21,8 @@ function wrapper(client = createTestQueryClient()) {
 }
 
 describe('useAgents', () => {
-  it('loads the agent list', async () => {
-    stub(() => fakeResponse({ body: [AGENT] }));
+  it('loads the roster', async () => {
+    stub(() => fakeResponse({ body: { agents: [AGENT], count: 1 } }));
     const { wrapper: Wrapper } = wrapper();
 
     const { result } = renderHook(() => useAgents(), { wrapper: Wrapper });
@@ -28,7 +30,7 @@ describe('useAgents', () => {
     await waitFor(() => expect(result.current.data).toEqual([AGENT]));
   });
 
-  it('surfaces the not-implemented endpoint as a typed 404', async () => {
+  it('surfaces a failing route as a typed error', async () => {
     stub(() => fakeResponse({ status: 404, body: { detail: 'Not Found' } }));
     const { wrapper: Wrapper } = wrapper();
 
@@ -39,7 +41,7 @@ describe('useAgents', () => {
   });
 
   it('does not fire while disabled', async () => {
-    const fetchMock = stub(() => fakeResponse({ body: [] }));
+    const fetchMock = stub(() => fakeResponse({ body: { agents: [] } }));
     const { wrapper: Wrapper } = wrapper();
 
     renderHook(() => useAgents({ enabled: false }), { wrapper: Wrapper });
@@ -48,22 +50,28 @@ describe('useAgents', () => {
   });
 });
 
-describe('useAgentCommand', () => {
-  it('POSTs the command and refetches the list afterwards', async () => {
-    const fetchMock = stub((url) =>
-      url.endsWith('/stop') ? fakeResponse({ body: { ...AGENT, status: 'stopped' } }) : fakeResponse({ body: [AGENT] }),
-    );
+describe('useAgent', () => {
+  it('shows the row you tapped before the detail call answers', async () => {
+    // `status` and `name` are already known from the roster, so the header does
+    // not have to flash empty for a round trip.
+    stub(() => fakeResponse({ body: agentInfo({ status: 'running' }) }));
     const { client, wrapper: Wrapper } = wrapper();
-    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    client.setQueryData(qk.agents(), [agentInfo({ status: 'idle' })]);
 
-    const { result } = renderHook(() => useAgentCommand(), { wrapper: Wrapper });
-    result.current.mutate({ id: 'a1', command: 'stop' });
+    const { result } = renderHook(() => useAgent('researcher'), { wrapper: Wrapper });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/v1/agents/a1/stop'),
-      expect.objectContaining({ method: 'POST' }),
-    );
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['agents'] });
+    expect(result.current.data).toMatchObject({ status: 'idle' });
+    await waitFor(() => expect(result.current.data).toMatchObject({ status: 'running' }));
+  });
+
+  it('still calls the detail route, because a stale list cannot 404', async () => {
+    const fetchMock = stub(() => fakeResponse({ status: 404, body: { detail: 'No agent named ghost.' } }));
+    const { client, wrapper: Wrapper } = wrapper();
+    client.setQueryData(qk.agents(), [agentInfo({ id: 'ghost', name: 'ghost' })]);
+
+    const { result } = renderHook(() => useAgent('ghost'), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.error).toMatchObject({ status: 404 }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/v1/agents/ghost'), expect.anything());
   });
 });

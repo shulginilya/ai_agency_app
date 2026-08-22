@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import ControlPlaneScreen from '../app/(tabs)/control-plane';
 import { requestLog } from '@/api/log';
+import { sessionInfo } from '@/test-utils/fixtures';
 import { fakeResponse } from '@/test-utils/http';
 import { renderWithQuery } from '@/test-utils/render';
 
@@ -22,9 +23,16 @@ function stubApi(routes: Routes) {
   return fetchMock;
 }
 
+const READY = {
+  status: 'ready',
+  checks: { sdk: 'ok', profile: 'ok' },
+  capacity: { runs_free: 4, sessions_free: 7 },
+};
+
 const HEALTHY: Routes = {
   '/healthz': () => fakeResponse({ body: { status: 'ok', version: '0.1.0' } }),
-  '/readyz': () => fakeResponse({ body: { status: 'ready' } }),
+  '/readyz': () => fakeResponse({ body: READY }),
+  '/v1/sessions': () => fakeResponse({ body: { sessions: [], count: 0 } }),
 };
 
 beforeEach(() => requestLog.clear());
@@ -82,6 +90,63 @@ describe('Control plane screen', () => {
     fireEvent.press(screen.getByTestId('run-checks'));
 
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it('shows the capacity readiness reports — will it take my prompt right now', async () => {
+    stubApi(HEALTHY);
+    renderWithQuery(<ControlPlaneScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('capacity-runs_free')).toHaveTextContent(/4/));
+    expect(screen.getByTestId('capacity-sessions_free')).toHaveTextContent(/7/);
+  });
+
+  it('leaves the capacity strip off when readiness is not the shape we know', async () => {
+    // The probe body schema accepts anything by design, so the strict read has
+    // to happen at the point of rendering rather than being assumed.
+    stubApi({ ...HEALTHY, '/readyz': () => fakeResponse({ body: { status: 'ready' } }) });
+    renderWithQuery(<ControlPlaneScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('system-status')).toHaveTextContent('healthy'));
+    expect(screen.queryByTestId('capacity-strip')).toBeNull();
+  });
+
+  it('lists what this process is holding open, and closes one on request', async () => {
+    const fetchMock = stubApi({
+      ...HEALTHY,
+      '/v1/sessions': () => fakeResponse({ body: { sessions: [sessionInfo({ turns: 2 })], count: 1 } }),
+      '/v1/sessions/sess_1': () => fakeResponse({ status: 204 }),
+    });
+    renderWithQuery(<ControlPlaneScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('session-row-sess_1')).toBeTruthy());
+    expect(screen.getByTestId('session-meta-sess_1')).toHaveTextContent(/2 turns/);
+
+    fireEvent.press(screen.getByTestId('session-close-sess_1'));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/sessions/sess_1'),
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    );
+  });
+
+  it('will not offer to close a session mid-turn — the server would refuse anyway', async () => {
+    stubApi({
+      ...HEALTHY,
+      '/v1/sessions': () => fakeResponse({ body: { sessions: [sessionInfo({ status: 'busy' })], count: 1 } }),
+    });
+    renderWithQuery(<ControlPlaneScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('session-status-sess_1')).toHaveTextContent('busy'));
+    expect(screen.getByTestId('session-close-sess_1')).toBeDisabled();
+  });
+
+  it('says so when nothing is open', async () => {
+    stubApi(HEALTHY);
+    renderWithQuery(<ControlPlaneScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('sessions-empty')).toBeTruthy());
   });
 
   it('shows every call it made in the request log, and can clear it', async () => {
