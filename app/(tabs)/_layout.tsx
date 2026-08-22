@@ -21,6 +21,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Conversation',
+          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="control-plane"
         options={{
           title: 'Control plane',

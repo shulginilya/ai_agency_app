@@ -16,12 +16,34 @@ describe('Control plane', () => {
     cy.byTestId('last-checked').should('exist');
   });
 
+  it('says whether the server will actually take a prompt right now', () => {
+    cy.visitControlPlane();
+
+    cy.byTestId('capacity-runs_free').should('contain.text', '4');
+    cy.byTestId('capacity-sessions_free').should('exist');
+  });
+
+  it('shows nothing open on a server that is holding nothing', () => {
+    cy.visitControlPlane();
+
+    cy.byTestId('sessions-empty').should('exist');
+  });
+
+  it('drops the free-slot count to zero when the run pool is exhausted', () => {
+    cy.visitControlPlane();
+    cy.setApiState({ runs: 'busy' });
+    cy.byTestId('run-checks').click();
+
+    cy.byTestId('capacity-runs_free').should('contain.text', '0');
+  });
+
   it('logs every call it makes, and clears the log on demand', () => {
     cy.visitControlPlane();
 
     cy.byTestId('request-log-row').should('have.length.at.least', 2);
     cy.byTestId('request-log-row').should('contain.text', '/healthz');
     cy.byTestId('request-log-row').should('contain.text', '/readyz');
+    cy.byTestId('request-log-row').should('contain.text', '/v1/sessions');
 
     cy.byTestId('clear-log').click();
     cy.byTestId('request-log-row').should('not.exist');

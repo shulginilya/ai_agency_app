@@ -108,6 +108,16 @@ export class HttpClient {
     return this.request<T>({ ...options, path, body, method: 'POST' });
   }
 
+  /**
+   * DELETE is in `IDEMPOTENT_METHODS`, so it is retried by default. Callers
+   * deleting something whose absence is itself an error (a session handle, say)
+   * should pass `retries: 0` — a lost 204 replayed into a 404 reports a failure
+   * for work that succeeded.
+   */
+  delete<T = unknown>(path: string, options: Omit<RequestOptions<T>, 'path' | 'method'> = {}) {
+    return this.request<T>({ ...options, path, method: 'DELETE' });
+  }
+
   async request<T = unknown>(options: RequestOptions<T>): Promise<ApiResponse<T>> {
     const method = options.method ?? 'GET';
     const url = buildUrl(this.options.baseUrl, options.path, options.query);

@@ -11,7 +11,19 @@ import {
   type ContractEntry,
   type OpenApiDoc,
 } from '@/api/contract';
-import { AgentSchema, MessageSchema, ProbeBodySchema } from '@/api/schemas';
+import { RUNS_PATH } from '@/api/runs';
+import {
+  AgentInfoSchema,
+  AgentStatusSchema,
+  HealthSchema,
+  MessageResponseSchema,
+  ProbeBodySchema,
+  ProblemSchema,
+  ReadinessSchema,
+  RunResponseSchema,
+  SessionInfoSchema,
+} from '@/api/schemas';
+import { SESSIONS_PATH } from '@/api/sessions';
 
 /**
  * The contract test. `schemas.ts` is hand-written, the Pydantic models are
@@ -36,29 +48,50 @@ const spec = JSON.parse(readFileSync(SPEC_PATH, 'utf8')) as OpenApiDoc;
  * keeps this passing or fails it loudly — never silently checks a stale route.
  */
 const CONTRACT: readonly ContractEntry[] = [
+  // Probes read the status code, so the permissive body schema is what the app
+  // actually parses — and the strict one is what the control plane renders when
+  // it matches. Both are checked: the second is how a change to `capacity`
+  // reaches us as a build failure rather than a blank strip on the screen.
   { name: 'healthz', path: '/healthz', method: 'get', status: '200', schema: ProbeBodySchema },
   { name: 'readyz', path: '/readyz', method: 'get', status: '200', schema: ProbeBodySchema },
-  { name: 'listAgents', path: AGENTS_PATH, method: 'get', status: '200', schema: AgentSchema, envelope: 'agents' },
-  { name: 'getAgent', path: `${AGENTS_PATH}/{id}`, method: 'get', status: '200', schema: AgentSchema },
-  { name: 'commandAgent(start)', path: `${AGENTS_PATH}/{id}/start`, method: 'post', status: '200', schema: AgentSchema },
-  { name: 'commandAgent(stop)', path: `${AGENTS_PATH}/{id}/stop`, method: 'post', status: '200', schema: AgentSchema },
-  { name: 'commandAgent(pause)', path: `${AGENTS_PATH}/{id}/pause`, method: 'post', status: '200', schema: AgentSchema },
+  { name: 'healthz(rendered)', path: '/healthz', method: 'get', status: '200', schema: HealthSchema },
+  { name: 'readyz(rendered)', path: '/readyz', method: 'get', status: '200', schema: ReadinessSchema },
+
+  { name: 'listAgents', path: AGENTS_PATH, method: 'get', status: '200', schema: AgentInfoSchema, envelope: 'agents' },
+  { name: 'getAgent', path: `${AGENTS_PATH}/{id}`, method: 'get', status: '200', schema: AgentInfoSchema },
+
+  { name: 'createRun', path: RUNS_PATH, method: 'post', status: '200', schema: RunResponseSchema },
+
+  { name: 'openSession', path: SESSIONS_PATH, method: 'post', status: '201', schema: SessionInfoSchema },
   {
-    name: 'listMessages',
-    path: `${AGENTS_PATH}/{id}/messages`,
+    name: 'listSessions',
+    path: SESSIONS_PATH,
     method: 'get',
     status: '200',
-    schema: MessageSchema,
-    envelope: 'messages',
+    schema: SessionInfoSchema,
+    envelope: 'sessions',
   },
+  { name: 'getSession', path: `${SESSIONS_PATH}/{id}`, method: 'get', status: '200', schema: SessionInfoSchema },
   {
-    name: 'sendMessage',
-    path: `${AGENTS_PATH}/{id}/messages`,
+    name: 'sendSessionMessage',
+    path: `${SESSIONS_PATH}/{id}/messages`,
     method: 'post',
-    status: '202',
-    schema: MessageSchema,
-    envelope: 'message',
+    status: '200',
+    schema: MessageResponseSchema,
   },
+
+  // The failure contract, checked like any other response: `describeApiError`
+  // shows the server's `detail` verbatim, so `detail` going optional would
+  // quietly downgrade every error message in the app to generic copy.
+  { name: 'createRun(503)', path: RUNS_PATH, method: 'post', status: '503', schema: ProblemSchema },
+  {
+    name: 'sendSessionMessage(409)',
+    path: `${SESSIONS_PATH}/{id}/messages`,
+    method: 'post',
+    status: '409',
+    schema: ProblemSchema,
+  },
+  { name: 'getSession(404)', path: `${SESSIONS_PATH}/{id}`, method: 'get', status: '404', schema: ProblemSchema },
 ];
 
 describe('the pinned server spec fits through our schemas', () => {
@@ -73,6 +106,19 @@ describe('the pinned server spec fits through our schemas', () => {
       );
     }
     expect(errors).toEqual([]);
+  });
+
+  /**
+   * `closeSession` cannot be a CONTRACT entry: a 204 has no body, and the
+   * checker compares response schemas. What is worth pinning is that the route
+   * still answers 204 rather than having grown a body the client throws away.
+   */
+  it('still closes a session with a bodiless 204', () => {
+    const operation = spec.paths?.['/v1/sessions/{session_id}']?.delete as
+      | { responses?: Record<string, { content?: unknown }> }
+      | undefined;
+    expect(operation?.responses?.['204']).toBeDefined();
+    expect(operation?.responses?.['204']?.content).toBeUndefined();
   });
 
   it('reports what the client ignores, without failing', () => {
@@ -106,6 +152,18 @@ describe('checkContract', () => {
     { name: 'thing', path: '/thing', method: 'get', status: '200', schema },
   ];
 
+  /**
+   * A stand-in for a response schema, defined here rather than imported: these
+   * tests are about the *checker*, and pinning them to whatever `schemas.ts`
+   * happens to contain today means a change over there breaks tests that were
+   * never about it. `AgentInfoSchema` is checked against the real spec above.
+   */
+  const SampleSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    status: AgentStatusSchema,
+  });
+
   const agentProps = {
     id: { type: 'string', minLength: 1 },
     name: { type: 'string', minLength: 1 },
@@ -113,7 +171,7 @@ describe('checkContract', () => {
   };
 
   it('passes when the server matches', () => {
-    const findings = checkContract(objectSpec(agentProps, ['id', 'name', 'status']), entry(AgentSchema));
+    const findings = checkContract(objectSpec(agentProps, ['id', 'name', 'status']), entry(SampleSchema));
     expect(errorsIn(findings)).toEqual([]);
   });
 
@@ -121,7 +179,7 @@ describe('checkContract', () => {
     const { status: _dropped, ...renamed } = agentProps;
     const findings = checkContract(
       objectSpec({ ...renamed, state: agentProps.status }, ['id', 'name', 'state']),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.status', message: expect.stringContaining('does not document it') }),
@@ -129,7 +187,7 @@ describe('checkContract', () => {
   });
 
   it('catches a field the server stopped guaranteeing', () => {
-    const findings = checkContract(objectSpec(agentProps, ['id', 'status']), entry(AgentSchema));
+    const findings = checkContract(objectSpec(agentProps, ['id', 'status']), entry(SampleSchema));
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.name', message: expect.stringContaining('may omit it') }),
     );
@@ -141,7 +199,7 @@ describe('checkContract', () => {
         { ...agentProps, status: { type: 'string', enum: [...agentProps.status.enum, 'draining'] } },
         ['id', 'name', 'status'],
       ),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.status', message: expect.stringContaining('draining') }),
@@ -151,7 +209,7 @@ describe('checkContract', () => {
   it('catches a status field widened to a bare string', () => {
     const findings = checkContract(
       objectSpec({ ...agentProps, status: { type: 'string' } }, ['id', 'name', 'status']),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.status', message: expect.stringContaining('declare an enum') }),
@@ -161,7 +219,7 @@ describe('checkContract', () => {
   it('catches a type change', () => {
     const findings = checkContract(
       objectSpec({ ...agentProps, id: { type: 'integer' } }, ['id', 'name', 'status']),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.id', message: 'server sends integer, client expects string' }),
@@ -171,7 +229,7 @@ describe('checkContract', () => {
   it('catches a server that permits the empty string where the client does not', () => {
     const findings = checkContract(
       objectSpec({ ...agentProps, name: { type: 'string' } }, ['id', 'name', 'status']),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing.name', message: expect.stringContaining('min_length=1') }),
@@ -179,7 +237,7 @@ describe('checkContract', () => {
   });
 
   /** What `updated_at` used to be: optional, but not nullable. */
-  const OptionalOnly = AgentSchema.extend({ updated_at: z.string().optional() });
+  const OptionalOnly = SampleSchema.extend({ updated_at: z.string().optional() });
 
   it('catches a nullable field the client only made optional', () => {
     const absentOnly = checkContract(
@@ -199,13 +257,13 @@ describe('checkContract', () => {
       expect.objectContaining({ where: 'thing.updated_at', message: expect.stringContaining('may send null') }),
     );
 
-    // …and the schema as it stands today, with .nullish(), takes it.
+    // …and `.nullish()`, which is what schemas.ts uses everywhere, takes it.
     const fixed = checkContract(
       objectSpec(
         { ...agentProps, updated_at: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
         ['id', 'name', 'status'],
       ),
-      entry(AgentSchema),
+      entry(SampleSchema.extend({ updated_at: z.string().nullish() })),
     );
     expect(errorsIn(fixed)).toEqual([]);
   });
@@ -227,7 +285,7 @@ describe('checkContract', () => {
   it('reports a field the client ignores without failing', () => {
     const findings = checkContract(
       objectSpec({ ...agentProps, queue_depth: { type: 'integer' } }, ['id', 'name', 'status']),
-      entry(AgentSchema),
+      entry(SampleSchema),
     );
     expect(errorsIn(findings)).toEqual([]);
     expect(findings).toContainEqual(
@@ -236,7 +294,7 @@ describe('checkContract', () => {
   });
 
   it('fails loudly when the route is gone', () => {
-    const findings = checkContract({ paths: {} }, entry(AgentSchema));
+    const findings = checkContract({ paths: {} }, entry(SampleSchema));
     expect(errorsIn(findings)).toContainEqual(
       expect.objectContaining({ where: 'thing', message: expect.stringContaining('GET /thing') }),
     );
@@ -261,7 +319,7 @@ describe('checkContract', () => {
       },
     };
     const findings = checkContract(doc, [
-      { name: 'getAgent', path: '/v1/agents/{id}', method: 'get', status: '200', schema: AgentSchema },
+      { name: 'getAgent', path: '/v1/agents/{id}', method: 'get', status: '200', schema: SampleSchema },
     ]);
     expect(errorsIn(findings)).toEqual([]);
   });
@@ -279,7 +337,7 @@ describe('checkContract', () => {
         paths: { '/thing': { get: { responses: { '200': { content: { 'application/json': { schema } } } } } } },
       };
       const findings = checkContract(doc, [
-        { name: 'thing', path: '/thing', method: 'get', status: '200', schema: AgentSchema, envelope: 'agents' },
+        { name: 'thing', path: '/thing', method: 'get', status: '200', schema: SampleSchema, envelope: 'agents' },
       ]);
       expect(errorsIn(findings)).toEqual([]);
     }
@@ -307,7 +365,7 @@ describe('checkContract', () => {
         },
       },
     };
-    expect(errorsIn(checkContract(doc, entry(AgentSchema)))).toEqual([]);
+    expect(errorsIn(checkContract(doc, entry(SampleSchema)))).toEqual([]);
   });
 
   it('accepts anything for a probe body', () => {
@@ -341,7 +399,7 @@ describe('checkContract', () => {
         schemas: { Agent: { type: 'object', properties: agentProps, required: ['id', 'name', 'status'] } },
       },
     };
-    expect(errorsIn(checkContract(doc, entry(AgentSchema)))).toEqual([]);
+    expect(errorsIn(checkContract(doc, entry(SampleSchema)))).toEqual([]);
   });
 
   it('lets an integer through a z.number(), but not a float through a z.number().int()', () => {

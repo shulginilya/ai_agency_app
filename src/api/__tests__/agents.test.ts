@@ -1,10 +1,11 @@
-import { commandAgent, getAgent, listAgents } from '@/api/agents';
+import { getAgent, isTeamOnly, listAgents } from '@/api/agents';
 import { HttpClient } from '@/api/http';
-import { AgentListResponseSchema, unwrapAgentList } from '@/api/schemas';
+import { AgentsResponseSchema, unwrapAgentList } from '@/api/schemas';
 import { catchApiError } from '@/test-utils/expect';
+import { agentInfo } from '@/test-utils/fixtures';
 import { fakeResponse, fetchSequence } from '@/test-utils/http';
 
-const AGENT = { id: 'a1', name: 'Research agent', status: 'running', updated_at: '2026-08-15T09:00:00Z' };
+const AGENT = agentInfo();
 
 function clientWith(fetchImpl: jest.Mock) {
   return new HttpClient({
@@ -16,21 +17,36 @@ function clientWith(fetchImpl: jest.Mock) {
 
 describe('listAgents', () => {
   it('calls the versioned collection route', async () => {
-    const fetchImpl = fetchSequence([fakeResponse({ body: [AGENT] })]);
+    const fetchImpl = fetchSequence([fakeResponse({ body: { agents: [AGENT], count: 1 } })]);
     await listAgents({ client: clientWith(fetchImpl) });
     expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/v1/agents', expect.anything());
   });
 
-  it('accepts a bare array', async () => {
+  it('accepts the { agents: [...] } envelope the server sends', async () => {
+    const agents = await listAgents({
+      client: clientWith(fetchSequence([fakeResponse({ body: { agents: [AGENT], count: 1 } })])),
+    });
+    expect(agents).toEqual([AGENT]);
+  });
+
+  it('accepts a bare array too, so the envelope can be dropped without a client release', async () => {
     const agents = await listAgents({ client: clientWith(fetchSequence([fakeResponse({ body: [AGENT] })])) });
     expect(agents).toEqual([AGENT]);
   });
 
-  it('accepts an { agents: [...] } envelope', async () => {
+  it('takes the nulls Pydantic puts on the wire for an unset optional', async () => {
+    const sparse = agentInfo({ model: null, tools: null, max_turns: null });
+    const agents = await listAgents({ client: clientWith(fetchSequence([fakeResponse({ body: [sparse] })])) });
+    expect(agents[0]).toMatchObject({ model: null, tools: null, max_turns: null });
+  });
+
+  it('takes an agent with no name, because the server does not promise one', async () => {
+    // `name` has no `min_length` in the spec. The client used to demand one,
+    // which would have refused a legal response — the contract test caught it.
     const agents = await listAgents({
-      client: clientWith(fetchSequence([fakeResponse({ body: { agents: [AGENT] } })])),
+      client: clientWith(fetchSequence([fakeResponse({ body: [agentInfo({ name: '' })] })])),
     });
-    expect(agents).toEqual([AGENT]);
+    expect(agents[0].name).toBe('');
   });
 
   it('rejects loudly when an agent status is not one we know', async () => {
@@ -44,7 +60,7 @@ describe('listAgents', () => {
 
   it('rejects loudly when a required field is missing', async () => {
     const error = await catchApiError(
-      listAgents({ client: clientWith(fetchSequence([fakeResponse({ body: [{ id: 'a1' }] })])) }),
+      listAgents({ client: clientWith(fetchSequence([fakeResponse({ body: [{ id: 'researcher' }] })])) }),
     );
 
     expect(error.kind).toBe('validation');
@@ -66,19 +82,22 @@ describe('getAgent', () => {
     await getAgent('a/1', { client: clientWith(fetchImpl) });
     expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8000/v1/agents/a%2F1', expect.anything());
   });
+
+  it('passes the 404 through — an unknown id is a caller error, not an empty agent', async () => {
+    const error = await catchApiError(
+      getAgent('nope', {
+        client: clientWith(fetchSequence([fakeResponse({ status: 404, body: { detail: 'No agent named nope.' } })])),
+      }),
+    );
+
+    expect(error.status).toBe(404);
+  });
 });
 
-describe('commandAgent', () => {
-  it('POSTs to the command path and returns the updated agent', async () => {
-    const fetchImpl = fetchSequence([fakeResponse({ body: { ...AGENT, status: 'stopped' } })]);
-
-    const agent = await commandAgent('a1', 'stop', { client: clientWith(fetchImpl) });
-
-    expect(fetchImpl).toHaveBeenCalledWith(
-      'http://localhost:8000/v1/agents/a1/stop',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    expect(agent.status).toBe('stopped');
+describe('isTeamOnly', () => {
+  it('separates the agents a solo run can reach from the ones it cannot', () => {
+    expect(isTeamOnly(agentInfo({ availability: 'team' }))).toBe(true);
+    expect(isTeamOnly(agentInfo({ availability: 'always' }))).toBe(false);
   });
 });
 
@@ -107,32 +126,33 @@ describe('EXPO_PUBLIC_MOCK_AGENTS', () => {
     jest.resetModules();
   });
 
+  /** `require` rather than `await import`: jest's ESM loader is off here, and
+   * this needs to re-evaluate the module *after* the env change either way. */
+  const reimport = (): typeof import('@/api/agents') =>
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/api/agents') as typeof import('@/api/agents');
+
   it('serves fixtures that satisfy the real schema, without touching the network', async () => {
     process.env.EXPO_PUBLIC_MOCK_AGENTS = '1';
     jest.resetModules();
-    const api = await import('@/api/agents');
+    const api = reimport();
     const fetchImpl = jest.fn();
 
     const agents = await api.listAgents({ client: clientWith(fetchImpl) });
 
     expect(agents.length).toBeGreaterThan(0);
-    expect(() => AgentListResponseSchema.parse(agents)).not.toThrow();
+    expect(() => AgentsResponseSchema.parse(agents)).not.toThrow();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('lets a command move an agent, so the screen is worth clicking', async () => {
+  it('resolves a single agent from the same fixtures', async () => {
     process.env.EXPO_PUBLIC_MOCK_AGENTS = '1';
     jest.resetModules();
-    const api = await import('@/api/agents');
+    const api = reimport();
     const fetchImpl = jest.fn();
     const [first] = await api.listAgents({ client: clientWith(fetchImpl) });
 
-    const paused = await api.commandAgent(first.id, 'pause', { client: clientWith(fetchImpl) });
-
-    expect(paused.status).toBe('paused');
-    await expect(api.getAgent(first.id, { client: clientWith(fetchImpl) })).resolves.toMatchObject({
-      status: 'paused',
-    });
+    await expect(api.getAgent(first.id, { client: clientWith(fetchImpl) })).resolves.toEqual(first);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

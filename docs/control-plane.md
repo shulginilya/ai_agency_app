@@ -1,30 +1,52 @@
 # Agent control plane — how the API layer works
 
-Proof of concept for driving agents from the app. Today the API exposes two
-health checks (`/healthz`, `/readyz`) and the first versioned data route,
-`/v1/agents`; the point of this layer is that adding the next twenty is a
-three-line change each.
+The app is a consumer of the `agency` HTTP API. The whole of that API is:
 
-Every agent route lives under `/v1/agents` — list, detail, commands and the
-message thread. The version prefix lives in the path (`AGENTS_PATH` /
-`agentPath()` in `src/api/agents.ts`) and nowhere else: not in the base URL, not
-in a per-call option, so a `/v2` route can sit beside a `/v1` one without a flag
-day.
+```
+GET    /healthz                        liveness
+GET    /readyz                         readiness, with free run and session slots
+GET    /v1/agents                      the subagent roster
+GET    /v1/agents/{agent_id}           one roster entry
+POST   /v1/runs                        one prompt, run to completion
+GET    /v1/sessions                    what this process is holding open
+POST   /v1/sessions                    open a conversation
+GET    /v1/sessions/{session_id}       poll one handle
+DELETE /v1/sessions/{session_id}       close it
+POST   /v1/sessions/{session_id}/messages   one turn
+```
+
+The version prefix lives in the path (`AGENTS_PATH` / `SESSIONS_PATH` /
+`RUNS_PATH` and their `…Path()` helpers) and nowhere else: not in the base URL,
+not in a per-call option, so a `/v2` route can sit beside a `/v1` one without a
+flag day.
+
+**The roster is read-only, and the agents are not addressable.** There is no
+`POST /v1/agents/{id}/start|stop|pause` and no `/v1/agents/{id}/messages`. The
+client carried both for a while, against a mock that implemented them; the
+contract test is what proved they had never existed on any server. Work reaches
+an agent by being delegated to it from a team run, and a worker is running or it
+is gone — the SDK exposes `interrupt()` on the main session, not on individual
+workers.
 
 ## The shape of it
 
 ```
-app/(tabs)/index.tsx         Screen: agent list (default tab)
-app/(tabs)/control-plane.tsx Screen: status, probes, request log
-app/agent/[id].tsx            Route wrapper — reads the id, mounts the screen
+app/(tabs)/index.tsx         Screen: the agent roster (default tab)
+app/(tabs)/chat.tsx          Route wrapper → src/screens/Conversation.tsx
+app/(tabs)/control-plane.tsx Screen: status, probes, open sessions, request log
+app/agent/[id].tsx           Route wrapper → src/screens/AgentDetail.tsx
         │
-src/screens/AgentChat.tsx  Screen: one agent — thread, composer, controls
+src/screens/Conversation.tsx  Screen: session or one-shot run, transcript, composer
+src/screens/AgentDetail.tsx   Screen: one roster entry, in full
         │
-src/hooks/                 useSystemStatus, useAgents, useMessages (React Query)
+src/chat/transcript.ts     The conversation — client-side, because the server keeps none
+        │
+src/hooks/                 useSystemStatus, useAgents, useSessions, useConversation
         │
 src/api/system.ts          Endpoint modules: a path, a schema, one call
 src/api/agents.ts
-src/api/messages.ts
+src/api/runs.ts
+src/api/sessions.ts
         │
 src/api/http.ts            HttpClient: timeouts, retries, auth, validation
 src/api/client.ts          The app-wide instance
@@ -41,91 +63,117 @@ touches `fetch`.
 
 ```ts
 // src/api/schemas.ts
-export const RunSchema = z.object({ id: z.string(), agent_id: z.string(), state: z.enum(['queued', 'done']) });
+export const RunRecordSchema = z.object({ run_id: z.string(), started_at: z.string().min(1) });
 
 // src/api/runs.ts
-export async function listRuns({ client = apiClient, signal }: AgentsApiOptions = {}) {
-  const { data } = await client.get('/runs', { schema: z.array(RunSchema), signal });
+export async function listRunHistory({ client = apiClient, signal }: RunsApiOptions = {}) {
+  const { data } = await client.get(`${RUNS_PATH}/history`, { schema: z.array(RunRecordSchema), signal });
   return data;
 }
 
-// src/hooks/useRuns.ts
-export function useRuns() {
-  return useQuery({ queryKey: qk.runs(), queryFn: ({ signal }) => listRuns({ signal }) });
+// src/hooks/useRunHistory.ts
+export function useRunHistory() {
+  return useQuery({ queryKey: qk.runHistory(), queryFn: ({ signal }) => listRunHistory({ signal }) });
 }
 ```
 
-Add the key to `src/query/keys.ts`, and a test next to the others. That's it.
+Add the key to `src/query/keys.ts`, an entry to `CONTRACT` in
+`src/api/__tests__/contract.test.ts`, and a test next to the others. That's it.
+
+Before adding to `CONTRACT`, check the route is actually in
+`contracts/openapi.json`. A manifest entry for a route nobody serves fails the
+build — which is the whole point, and is how the phantom agent-command routes
+were finally found.
 
 ## Looking at the screen before the route serves anything
 
-*Temporary.* `EXPO_PUBLIC_MOCK_AGENTS=1` in `.env` makes `listAgents`, `getAgent`
-and `commandAgent` answer from `src/api/fixtures/agents.ts` — six agents, one per
-status — instead of calling `/v1/agents`. Restart Metro after changing it; Expo
-inlines `EXPO_PUBLIC_*` at bundle time. Start/pause/stop really do move a row, so
-the screen is worth clicking rather than being a screenshot; the state resets on
-reload. No request is made, so mocked calls do not appear in the request log.
+*Temporary.* `EXPO_PUBLIC_MOCK_AGENTS=1` in `.env` makes `listAgents` and
+`getAgent` answer from `src/api/fixtures/agents.ts` — six agents, one per status
+— instead of calling `/v1/agents`. Restart Metro after changing it; Expo inlines
+`EXPO_PUBLIC_*` at bundle time. No request is made, so mocked calls do not appear
+in the request log.
 
 Unset — the default, and what every test run and CI sees — none of it is
-reachable. To remove it for good: delete the fixtures file and the three
+reachable. To remove it for good: delete the fixtures file and the two
 `if (MOCK_AGENTS_ENABLED)` early returns in `src/api/agents.ts`.
 
-The message thread is not mocked, so tapping into a chat shows the "no messaging
-endpoint yet" notice unless `tools/mock-agent-api.mjs` is running.
+Nothing else is mocked: for a working conversation, run
+`npm run mock:api` (or your own server) and point the app at it.
 
-## Talking to an agent
+## Talking to the server: runs and sessions
 
-Tapping an agent on the Agents screen opens `app/agent/[id].tsx`: a thread, a
-composer, and the start/pause/stop controls in the header. It runs on two
-endpoints the server does not have yet — `tools/mock-agent-api.mjs` implements
-them, so the screen is fully clickable today and the FastAPI side only has to
-match these shapes.
+You do not talk to an agent. The roster lists *subagents*, and the manager — the
+thread you actually converse with — is not on it; `team: true` is what selects
+it. The Conversation tab offers the two ways the API gives you to send work.
+
+**One-shot — `POST /v1/runs`.** One prompt, one answer, no memory, nothing to
+clean up.
 
 ```http
-GET /v1/agents/{id}/messages?after=<message id>&limit=<n>
-200 { "messages": [ Message, … ] }        # a bare [ … ] is accepted too
-
-POST /v1/agents/{id}/messages
-    { "content": "summarise the leads" }
-202 { "message": Message }                # a bare Message is accepted too
+POST /v1/runs
+    { "prompt": "rank the leads", "team": true }     # profile optional
+200 RunResponse
 ```
 
-```jsonc
-// Message
-{
-  "id": "m1",
-  "agent_id": "a1",
-  "role": "user",            // user · agent · system
-  "content": "summarise the leads",
-  "created_at": "2026-08-16T09:00:00Z",   // required: the thread is ordered by it
-  "pending": true                          // optional: still being produced
-}
+**A conversation — `/v1/sessions`.** Open once, then a turn per message. The
+agent remembers, and you own a live subprocess until you close it.
+
+```http
+POST   /v1/sessions              { "team": true }   201 SessionInfo
+POST   /v1/sessions/{id}/messages { "prompt": "…" } 200 { session_id, turn, run }
+DELETE /v1/sessions/{id}                            204
 ```
 
-**The POST answers with your message, not with the reply.** `202 Accepted` means
-the work is queued; the answer turns up in a later `GET`. That split is what
-makes the round trip pollable without any streaming machinery, and it is the
-shape a queue-backed agent wants anyway — accepting work and finishing work are
-different moments, and only one of them is fast.
+Five things about that contract shape the client, and each one is load-bearing:
 
-**Polling is conditional.** `useMessages` asks one question — is an answer
-outstanding? — and only then sets a `refetchInterval` (1.5s). Outstanding means
-either the server flagged a message `pending`, or the last thing in the thread is
-something you said. An idle thread makes no requests at all. After 60 seconds
-with no answer it stops and says so rather than spinning forever, with a "check
-again" that starts the wait over.
+**The turn's result is the same `RunResponse` a one-shot run returns**, nested
+under `run`. So the screen renders a turn and a run through one code path, and
+`src/chat/transcript.ts` has one `agentEntry()` rather than two.
 
-**Sending is optimistic, and rolls back.** Your bubble appears before the network
-answers, because a chat that waits for a round trip to echo your own words feels
-broken. If the POST fails, the optimistic message is removed rather than left
-lying about having been delivered, and the screen puts your text back in the
-composer. `POST` is never auto-retried by `HttpClient` — a duplicate instruction
-to an agent is worse than a failed one.
+**`is_error: true` arrives on a 200.** The request succeeded; the agent did not.
+Nothing in the HTTP layer will tell you — `MessageBubble` reads the flag and says
+so out loud, because a failed run that renders as a normal reply is worse than an
+error.
 
-**`role: "system"` is the control plane narrating itself.** Pausing an agent
-writes "…was paused" into the same thread, so one surface holds both what was
-said to the agent and what happened to it. If your API would rather keep events
-separate, just never emit the role — the client renders whatever it is given.
+**`profile` and `team` are fixed at open time.** Sending either on a turn is a
+422, not a no-op: they were baked into the options the session connected with.
+The screen disables those controls once a session exists rather than letting you
+find out.
+
+**One turn at a time.** A message to a busy session is a 409, not a queued turn.
+A turn also takes a slot from the same `RunSlots` pool `POST /v1/runs` draws
+from, so a 503 means the server is busy rather than the session being wrong.
+
+**502 and 504 close the session server-side.** A cancelled drain leaves the SDK
+client indeterminate, so the server drops the handle on its way out — and
+"retry the same session id" is the obvious, wrong next move. `sessionIsGone()`
+in `src/api/sessions.ts` names those statuses; `useConversation` drops the handle
+and says so in the thread, and the next message opens a fresh session.
+
+### The transcript is the client's
+
+There is no `GET /v1/sessions/{id}/messages`. `SessionInfo` is a handle — status,
+turn count, expiry — and each turn is persisted server-side as its own run
+record. Whatever the screen shows as a thread, the screen owns.
+
+That is *less* machinery than the polled thread this replaced, not more. A turn
+is one request that returns the finished reply, so there is no accept-then-poll
+dance, no `pending` flag arriving from the wire, no 60-second give-up timer, and
+no way for two clients to disagree about the order. `src/chat/transcript.ts` is
+pure functions over an array; the only optimistic state is your own line, held
+while its request is in flight and rolled back if the send fails — the screen
+puts your text back in the composer. `POST` is never auto-retried by
+`HttpClient`: a retried run is a second run, and it costs money.
+
+`role: 'system'` is the control plane narrating itself into the same thread —
+session opened, session closed, session dropped by the server.
+
+### What a reply is worth looking at for
+
+Under every agent line: turns, wall time, cost, model, who it delegated to, the
+tools it touched, and any guardrail denial or tool failure. That trace is most of
+the reason to look at this screen rather than run the CLI — and `delegated_to` is
+the only place the roster and the conversation visibly meet.
 
 ## Keeping the Python API and these schemas in step
 
@@ -171,7 +219,7 @@ What it catches, in the words it uses:
 | `str` where the app expects a number | `server sends integer, client expects string` |
 | `min_length` dropped | `client requires minLength 1, server permits 0` |
 | A field started arriving as `null` | `server may send null here, client rejects it` |
-| Route renamed or removed | `spec has no GET /v1/agents → 200 application/json response` |
+| Route renamed, removed, or never shipped | `spec has no POST /v1/agents/{id}/start → 200 application/json response` |
 
 **Everyday use needs no server.** The test reads the pinned `contracts/openapi.json`,
 so `npm test` works offline and in CI. A spec change reaches the build only when
@@ -189,14 +237,20 @@ stable across versions — unsorted, every regeneration is a diff nobody reads.
 **Three things the Python side has to say out loud**, because the app already
 assumes them and the test enforces them:
 
-- `AgentStatus`/`MessageRole` are `StrEnum`, not `str`. A bare `str` means a
-  seventh status is legal on the wire and fatal in the app.
-- Identifiers carry `Field(min_length=1)`, matching `z.string().min(1)` here.
-  (A `datetime` field is exempt — a `date-time` string is never empty.)
-- `str | None = None` puts `"updated_at": null` on the wire, not an absent key.
-  `Agent.updated_at`, `Agent.description` and `Message.pending` are `.nullish()`
-  here for that reason. If you would rather omit the key, set
-  `response_model_exclude_none=True` on the route.
+- `AgentStatus`, `availability`, session `status` and `ToolEvent.phase` are
+  enums, not `str`. A bare `str` means a seventh status is legal on the wire and
+  fatal in the app.
+- Whatever carries `Field(min_length=1)` server-side is what may carry `.min(1)`
+  here — and no more. `AgentInfo.name` does *not* declare one, so the client does
+  not either: demanding it would refuse a legal response. (A `datetime` field is
+  exempt — a `date-time` string is never empty.)
+- `str | None = None` puts `"model": null` on the wire, not an absent key.
+  `AgentInfo.model`/`tools`/`max_turns`, `SessionInfo.expires_at` and
+  `RunResponse.output` are `.nullish()` here for that reason. If you would rather
+  omit the key, set `response_model_exclude_none=True` on the route.
+- `Problem.detail` is required. `describeApiError` shows it verbatim, so the day
+  it goes optional every error message in the app quietly degrades to generic
+  copy — which is why the 409/503/404 problem responses are in `CONTRACT` too.
 
 **The mock is not checked against this.** `tools/mock-agent-api.mjs` exists to
 force failure modes the real API cannot be asked for; keeping it spec-conformant
@@ -280,12 +334,13 @@ production over the public internet should be HTTPS.
 |---|---|---|
 | Transport | `src/api/__tests__/http.test.ts` | timeouts, abort, backoff, auth header, error taxonomy, logging |
 | Config | `src/api/__tests__/config.test.ts` | base URL per platform and host |
-| Endpoints | `src/api/__tests__/{system,agents,messages}.test.ts` | probe verdicts, schema strictness, both list shapes |
+| Endpoints | `src/api/__tests__/{system,agents,runs,sessions}.test.ts` | probe verdicts, schema strictness, what is and is not retried |
 | Contract | `src/api/__tests__/contract.test.ts` | the pinned FastAPI spec still fits through `schemas.ts` |
-| Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, conditional polling, optimistic send + rollback |
-| Components | `src/components/__tests__/*` | probe card states, log rows, message bubbles |
-| Screens | `__tests__/{agents-screen,control-plane-screen,agent-chat}.test.tsx` | the whole thing with only `fetch` stubbed |
-| Browser | `cypress/e2e/{agents,control-plane,agent-chat}.cy.ts` | real bundle, real HTTP, a reply arriving by itself |
+| Transcript | `src/chat/__tests__/transcript.test.ts` | the conversation as pure functions: rollback, fallbacks, formatting |
+| Hooks | `src/hooks/__tests__/*` | healthy/degraded/down, session reuse, optimistic send + rollback, a session dropped under you |
+| Components | `src/components/__tests__/*` | probe card states, log rows, message bubbles and their run trace |
+| Screens | `__tests__/{agents-screen,agent-detail,conversation-screen,control-plane-screen}.test.tsx` | the whole thing with only `fetch` stubbed |
+| Browser | `cypress/e2e/{agents,conversation,control-plane}.cy.ts` | real bundle, real HTTP, a real session held between messages |
 
 `npm test` · `npm run test:coverage` · `npm run e2e` · `npm run verify`
 
@@ -294,9 +349,10 @@ your FastAPI, so the suite can force failure modes on demand:
 
 ```bash
 curl -X POST localhost:8000/__control__ -d '{"readyz":"fail"}'      # readiness down
-curl -X POST localhost:8000/__control__ -d '{"agents":"reset"}'     # agent statuses back to the seed
-curl -X POST localhost:8000/__control__ -d '{"messages":"missing"}' # the chat endpoints 404
-curl -X POST localhost:8000/__control__ -d '{"send":"fail"}'        # sending answers 500
+curl -X POST localhost:8000/__control__ -d '{"runs":"busy"}'        # 503: no run slot, and capacity drops to 0
+curl -X POST localhost:8000/__control__ -d '{"runs":"fail"}'        # 502: the loop failed, and the session is closed
+curl -X POST localhost:8000/__control__ -d '{"runs":"error"}'       # 200 with is_error: true
+curl -X POST localhost:8000/__control__ -d '{"sessions":"busy"}'    # 409 on a turn, and on closing
 curl -X POST localhost:8000/__control__ -d '{"replyDelayMs":5000}'  # a slow agent
 curl -X POST localhost:8000/__control__ -d '{"latencyMs":1200}'     # slow API
 curl -X POST localhost:8000/__control__ -d '{"reset":true}'

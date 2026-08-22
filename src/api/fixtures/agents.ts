@@ -1,90 +1,104 @@
-import type { Agent, AgentCommand } from '@/api/agents';
+import type { AgentInfo } from '@/api/schemas';
 
 /**
- * TEMPORARY — dummy data for `/v1/agents` so the screen can be looked at before
- * the real route serves anything.
+ * TEMPORARY — dummy data for `/v1/agents` so the roster can be looked at without
+ * a server running.
  *
  * Turn it on with `EXPO_PUBLIC_MOCK_AGENTS=1` in `.env`, then restart Metro
  * (Expo inlines EXPO_PUBLIC_* at bundle time, so a running server will not pick
  * the change up). With the flag unset — which is the default, and what CI and
  * every test run see — nothing here is reachable and the app talks to the API.
  *
- * To remove: delete this file and the three `if (MOCK_AGENTS_ENABLED)` early
+ * The shape is `AgentInfo` from the spec, statuses included: the roster is
+ * read-only, so unlike the earlier version of this file nothing here mutates.
+ *
+ * To remove: delete this file and the two `if (MOCK_AGENTS_ENABLED)` early
  * returns in `src/api/agents.ts`. Nothing else refers to it.
  */
 export const MOCK_AGENTS_ENABLED = process.env.EXPO_PUBLIC_MOCK_AGENTS === '1';
 
 /** One per status, so every StatusPill tone and row state is on screen at once. */
-const SEED: readonly Agent[] = [
+const SEED: readonly AgentInfo[] = [
   {
-    id: 'a1',
-    name: 'Research agent',
+    id: 'researcher',
+    name: 'researcher',
     status: 'running',
     description: 'Reads the brief and pulls together background on each account.',
-    updated_at: '2026-08-17T07:40:00Z',
+    availability: 'always',
+    updated_at: '2026-08-21T07:40:00Z',
+    model: 'sonnet',
+    tools: ['Read', 'Grep', 'WebSearch'],
+    max_turns: 12,
+    invocations: 4,
   },
   {
-    id: 'a2',
-    name: 'Outreach agent',
+    id: 'reviewer',
+    name: 'reviewer',
     status: 'idle',
-    description: 'Drafts the first-touch email once research signs off.',
-    updated_at: '2026-08-17T07:12:00Z',
+    description: 'Reviews a diff and reports what would break.',
+    availability: 'always',
+    updated_at: '2026-08-21T07:12:00Z',
+    model: 'opus',
+    tools: ['Read', 'Grep'],
+    max_turns: null,
+    invocations: 2,
   },
   {
-    id: 'a3',
-    name: 'Lead scoring agent',
+    id: 'planner',
+    name: 'planner',
     status: 'starting',
-    description: 'Warming up its model cache.',
-    updated_at: '2026-08-17T07:44:00Z',
+    description: 'Turns a goal into an ordered plan before anyone writes code.',
+    availability: 'team',
+    updated_at: '2026-08-21T07:44:00Z',
+    model: null,
+    tools: null,
+    max_turns: 6,
+    invocations: 0,
   },
   {
-    id: 'a4',
-    name: 'Meeting notes agent',
+    id: 'scribe',
+    name: 'scribe',
     status: 'paused',
-    description: 'Held while the calendar integration is reconnected.',
-    updated_at: '2026-08-17T06:30:00Z',
+    description: 'Writes the run up afterwards, for people who were not watching.',
+    availability: 'team',
+    updated_at: '2026-08-21T06:30:00Z',
+    model: 'haiku',
+    tools: ['Read', 'Write'],
+    max_turns: 4,
+    invocations: 1,
   },
   {
-    id: 'a5',
-    name: 'Invoice agent',
+    id: 'builder',
+    name: 'builder',
     status: 'error',
-    description: 'Last run failed: the billing API rejected the credentials.',
-    updated_at: '2026-08-17T05:58:00Z',
+    description: 'Applies the plan. Last delegation failed inside the tool call.',
+    availability: 'team',
+    updated_at: '2026-08-21T05:58:00Z',
+    model: 'sonnet',
+    tools: ['Read', 'Write', 'Bash'],
+    max_turns: 20,
+    invocations: 7,
   },
   {
-    id: 'a6',
-    name: 'Archive agent',
+    id: 'archivist',
+    name: 'archivist',
     status: 'stopped',
-    description: 'Stopped by hand after the quarterly sweep finished.',
-    updated_at: '2026-08-16T18:05:00Z',
+    description: 'Sweeps finished runs into the archive.',
+    availability: 'team',
+    updated_at: '2026-08-20T18:05:00Z',
+    model: 'haiku',
+    tools: ['Read'],
+    max_turns: null,
+    invocations: 0,
   },
 ];
 
-/**
- * A mutable copy, so start/pause/stop actually move a row and the screen is worth
- * clicking rather than being a screenshot. Resets on reload, which is fine.
- */
-let agents: Agent[] = SEED.map((agent) => ({ ...agent }));
-
-const STATUS_AFTER: Record<AgentCommand, Agent['status']> = {
-  start: 'running',
-  stop: 'stopped',
-  pause: 'paused',
-};
-
-export function mockListAgents(): Agent[] {
-  return agents.map((agent) => ({ ...agent }));
+export function mockListAgents(): AgentInfo[] {
+  return SEED.map((agent) => ({ ...agent }));
 }
 
-export function mockGetAgent(id: string): Agent {
-  const agent = agents.find((candidate) => candidate.id === id);
+export function mockGetAgent(id: string): AgentInfo {
+  const agent = SEED.find((candidate) => candidate.id === id);
   if (!agent) throw new Error(`No mock agent with id ${id}`);
   return { ...agent };
-}
-
-export function mockCommandAgent(id: string, command: AgentCommand): Agent {
-  agents = agents.map((agent) =>
-    agent.id === id ? { ...agent, status: STATUS_AFTER[command], updated_at: new Date().toISOString() } : agent,
-  );
-  return mockGetAgent(id);
 }

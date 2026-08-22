@@ -94,6 +94,62 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+/**
+ * What to put on screen when a call fails.
+ *
+ * `userMessage` is generic on purpose — it belongs to the transport layer and
+ * knows nothing about this API. This does: every 4xx and 5xx here is an RFC 9457
+ * problem document whose `detail` was written for a human, and the statuses that
+ * matter on the run and session routes each mean something specific enough to be
+ * worth saying out loud.
+ *
+ *   409 — a turn is already in flight on this session
+ *   503 — no run slot free; the work is fine, the server is busy
+ *   504 — the run outlived the server's timeout, and the session is now closed
+ *   502 — the agent loop itself failed, and the session is now closed
+ *
+ * The server's own `detail` wins when there is one: it can say which session,
+ * which agent, which limit.
+ */
+export function describeApiError(error: unknown, fallback = 'Something went wrong.'): string {
+  if (!isApiError(error)) return fallback;
+
+  const detail = problemDetailOf(error);
+  if (detail) return detail;
+
+  switch (error.status) {
+    case 409:
+      return 'That session is busy with a turn already. Wait for it to finish.';
+    case 422:
+      return 'The server rejected the request as invalid.';
+    case 503:
+      return 'The server has no free slot right now. Try again in a moment.';
+    case 504:
+      return 'The run took longer than the server allows, so it was cut off.';
+    case 502:
+      return 'The agent loop failed. Start a new session — this one was closed.';
+    default:
+      return error.userMessage;
+  }
+}
+
+/**
+ * Pulls `detail` out of a problem document. Hand-parsed rather than schema-
+ * parsed: an error body is precisely the case where you cannot assume a shape,
+ * and a failure to read the failure should never become a second failure.
+ */
+function problemDetailOf(error: ApiError): string | undefined {
+  if (!error.responseBody) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(error.responseBody);
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const detail = (parsed as { detail?: unknown }).detail;
+    return typeof detail === 'string' && detail.trim() !== '' ? detail : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** True when the failure is "the caller changed its mind", not "the API is broken". */
 export function isAbortError(error: unknown): boolean {
   if (isApiError(error)) return error.kind === 'aborted';
