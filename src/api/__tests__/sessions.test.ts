@@ -107,6 +107,19 @@ describe('closeSession', () => {
     );
   });
 
+  it('sends the DELETE with keepalive, so a closing page can still finish it', async () => {
+    // The close that matters most is fired from `pagehide`, where a request
+    // tied to the document would be cancelled with it.
+    const fetchImpl = fetchSequence([fakeResponse({ status: 204 })]);
+
+    await closeSession('sess_1', { client: clientWith(fetchImpl) });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `http://localhost:8000${SESSIONS_PATH}/sess_1`,
+      expect.objectContaining({ keepalive: true }),
+    );
+  });
+
   it('does not retry, so a lost 204 cannot be replayed into a 404', async () => {
     // DELETE is nominally idempotent and the client would retry it by default.
     // Here that would turn a close that worked into a failure report.

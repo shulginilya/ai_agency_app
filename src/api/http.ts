@@ -42,6 +42,11 @@ export type RequestOptions<T> = {
   retries?: number;
   /** `none` skips body reading entirely (useful for HEAD). */
   responseType?: 'json' | 'text' | 'none';
+  /**
+   * Lets the request outlive the page that started it (`fetch`'s `keepalive`).
+   * Web only, small bodies only — for the teardown calls fired from `pagehide`.
+   */
+  keepalive?: boolean;
 };
 
 export type ApiResponse<T> = {
@@ -53,6 +58,7 @@ export type ApiResponse<T> = {
   raw?: string;
 };
 
+/** Cap on what reaches the request log and `ApiError.responseBody`. Never the parser. */
 const MAX_LOGGED_BODY = 2_000;
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -150,7 +156,7 @@ export class HttpClient {
     url: string,
     attempt: number,
   ): Promise<ApiResponse<T>> {
-    const { method, schema, signal, body, responseType = 'json' } = options;
+    const { method, schema, signal, body, responseType = 'json', keepalive } = options;
     const fetchImpl = this.options.fetchImpl ?? globalThis.fetch;
     const now = this.options.now ?? Date.now;
     const requestId = (this.options.randomId ?? defaultRandomId)();
@@ -186,9 +192,15 @@ export class HttpClient {
         headers,
         body: encodeBody(body),
         signal: controller.signal,
+        ...(keepalive ? { keepalive: true } : {}),
       });
 
-      const raw = responseType === 'none' ? undefined : truncate(await response.text());
+      // Read once, then keep the two uses apart: the parser needs the whole
+      // body, the log and the error only ever show a capped copy. Parsing the
+      // capped copy would fail on any response over `MAX_LOGGED_BODY` — a
+      // roster or a long agent reply — with "not valid JSON".
+      const text = responseType === 'none' ? undefined : await response.text();
+      const raw = text === undefined ? undefined : truncate(text);
       const latencyMs = now() - startedAt;
 
       if (!response.ok) {
@@ -204,7 +216,7 @@ export class HttpClient {
         );
       }
 
-      const parsed = parseBody(raw, responseType, method, url);
+      const parsed = parseBody(text, responseType, method, url);
       const data = schema ? validate(schema, parsed, method, url, raw) : (parsed as T);
 
       log({ latencyMs, ok: true, status: response.status });

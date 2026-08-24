@@ -94,12 +94,22 @@ export async function getSession(
  * succeeded but whose response was lost would be retried into a 404, and the
  * app would report a failure for something that worked. A 409 (a turn is still
  * in flight) is the honest case to surface — wait for the turn, then close.
+ *
+ * `keepalive: true` because the call that matters most is the one fired while
+ * the page is going away (`pagehide`, or a tab hidden for good): without it the
+ * browser cancels the request with the document and the subprocess is left for
+ * `expires_at` to collect.
  */
 export async function closeSession(
   id: string,
   { client = apiClient, signal }: SessionsApiOptions = {},
 ): Promise<void> {
-  await client.delete(sessionPath(id), { responseType: 'none', retries: 0, signal });
+  await client.delete(sessionPath(id), {
+    responseType: 'none',
+    retries: 0,
+    keepalive: true,
+    signal,
+  });
 }
 
 /**
