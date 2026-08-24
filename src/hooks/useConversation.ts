@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type UseMutateFunction } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isApiError } from '@/api/errors';
 import { createRun } from '@/api/runs';
 import { closeSession, openSession, sendSessionMessage, sessionIsGone } from '@/api/sessions';
@@ -168,6 +168,48 @@ export function useConversation({
       }
     },
   });
+
+  /**
+   * The browser's last chance to hand the subprocess back.
+   *
+   * `pagehide` covers navigation, reload and tab close; `visibilitychange`
+   * covers the mobile case, where a backgrounded tab is often discarded without
+   * ever firing `pagehide`. Both are web-only, hence the `document` guard —
+   * on native there is no page to hide.
+   *
+   * This deliberately skips the `close` mutation and calls the endpoint
+   * directly: nothing is left to observe the result once the document is going
+   * away, and `closeSession` sends the DELETE with `keepalive` so the request
+   * survives the teardown. The handle is dropped locally either way, so a tab
+   * that does come back opens a fresh session on its next message rather than
+   * spending one on a 404.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const closeActiveSession = () => {
+      const active = sessionRef.current;
+      if (!active) return;
+      holdSession(null);
+      // There is no one left to surface a failure to; the session expires
+      // server-side regardless.
+      void closeSession(active.id).catch(() => {});
+      void queryClient.invalidateQueries({ queryKey: qk.sessions() });
+    };
+
+    const onPageHide = () => closeActiveSession();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') closeActiveSession();
+    };
+
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [holdSession, queryClient]);
 
   const clear = useCallback(() => setEntries([]), []);
 

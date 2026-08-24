@@ -42,6 +42,11 @@ export type RequestOptions<T> = {
   retries?: number;
   /** `none` skips body reading entirely (useful for HEAD). */
   responseType?: 'json' | 'text' | 'none';
+  /**
+   * Lets the request outlive the page that started it (`fetch`'s `keepalive`).
+   * Web only, small bodies only — for the teardown calls fired from `pagehide`.
+   */
+  keepalive?: boolean;
 };
 
 export type ApiResponse<T> = {
@@ -150,7 +155,7 @@ export class HttpClient {
     url: string,
     attempt: number,
   ): Promise<ApiResponse<T>> {
-    const { method, schema, signal, body, responseType = 'json' } = options;
+    const { method, schema, signal, body, responseType = 'json', keepalive } = options;
     const fetchImpl = this.options.fetchImpl ?? globalThis.fetch;
     const now = this.options.now ?? Date.now;
     const requestId = (this.options.randomId ?? defaultRandomId)();
@@ -186,6 +191,7 @@ export class HttpClient {
         headers,
         body: encodeBody(body),
         signal: controller.signal,
+        ...(keepalive ? { keepalive: true } : {}),
       });
 
       const raw = responseType === 'none' ? undefined : truncate(await response.text());
