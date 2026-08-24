@@ -86,6 +86,36 @@ describe('HttpClient success path', () => {
   });
 });
 
+describe('HttpClient body size', () => {
+  /** Comfortably over the 2,000-character log cap — a roster of a dozen agents. */
+  const bigBody = { items: Array.from({ length: 60 }, (_, index) => ({ id: `agent_${index}`, note: 'x'.repeat(40) })) };
+
+  it('parses a body larger than the log cap', async () => {
+    const payload = JSON.stringify(bigBody);
+    expect(payload.length).toBeGreaterThan(2_000);
+    const fetchImpl = fetchSequence([fakeResponse({ text: payload })]);
+    const { client } = makeClient(fetchImpl);
+
+    // Regression: the body used to be truncated for the log *before* being
+    // parsed, so every response over the cap came back as a `parse` error —
+    // the agents list stopped loading the moment the roster outgrew 2kB.
+    const { data } = await client.get('/v1/agents');
+
+    expect(data).toEqual(bigBody);
+  });
+
+  it('still caps the copy kept for the log and the raw view', async () => {
+    const payload = JSON.stringify(bigBody);
+    const fetchImpl = fetchSequence([fakeResponse({ status: 500, text: payload })]);
+    const { client } = makeClient(fetchImpl, { retries: 0 });
+
+    const error = await catchApiError(client.get('/v1/agents'));
+
+    expect(error.responseBody).toHaveLength(2_001); // 2,000 characters plus the ellipsis
+    expect(error.responseBody?.endsWith('…')).toBe(true);
+  });
+});
+
 describe('HttpClient failure taxonomy', () => {
   it('maps a non-2xx response to an http error carrying the body', async () => {
     const { client } = makeClient(fetchSequence([fakeResponse({ status: 404, body: { detail: 'Not Found' } })]), {
