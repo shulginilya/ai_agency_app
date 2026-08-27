@@ -104,6 +104,11 @@ function AgentFacts({ agent }: { agent: AgentInfo }) {
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Fact label="Availability" value={agent.availability} testID="detail-availability" />
         <Fact
+          label="Team"
+          value={agent.team ?? 'none — loaded on every run'}
+          testID="detail-team"
+        />
+        <Fact
           label="Model"
           value={agent.model ?? 'inherits the run’s'}
           testID="detail-model"
@@ -144,8 +149,10 @@ function AgentFacts({ agent }: { agent: AgentInfo }) {
         <Text style={[styles.sectionTitle, { color: colors.text }]}>How to reach it</Text>
         <Text testID="detail-how-to-reach" style={[styles.cardText, { color: colors.textMuted }]}>
           {agent.availability === 'team'
-            ? 'Only loaded on a team run. Turn Team on in the Conversation tab and the manager may delegate here.'
-            : 'Loaded on every run. The manager may delegate to it whenever the description fits the work.'}
+            ? `Only loaded on a run as ${agent.team ?? 'a team'}. Pick ${
+                agent.team ?? 'that team'
+              } in the Conversation tab and its manager may delegate here.`
+            : 'Loaded on every run, whichever team. A manager may delegate to it whenever the description fits the work.'}
         </Text>
         <Text style={[styles.footnote, { color: colors.textMuted }]}>
           There is no start, pause or stop: a worker is running or it is gone.

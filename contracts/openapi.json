@@ -5,7 +5,7 @@
         "description": "One subagent the server can invoke.\n\nDeliberately not the whole `AgentDefinition`: `prompt` is the agent's system prompt\nand is an implementation detail, not a wire contract -- publishing it would make\nevery prompt tweak a breaking API change. What is here is what a caller needs to\nchoose an agent and predict what it can do.",
         "properties": {
           "availability": {
-            "description": "'always' -- loaded on every run. 'team' -- only present when the run is started with team=true.",
+            "description": "'always' -- loaded on every run. 'team' -- only present when the run is started with team=<name>; see the `team` field for which one.",
             "enum": [
               "always",
               "team"
@@ -63,6 +63,18 @@
             "$ref": "#/components/schemas/AgentStatus",
             "description": "Live state in THIS server process, from the subagent hook stream. Runs are in-process, so an agent reads `running` only while this server is actually invoking it -- with uvicorn --workers N each worker reports its own view."
           },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the team this worker belongs to, or null for an always-available agent. Pass this as `team` on POST /v1/runs or POST /v1/sessions to reach it.",
+            "title": "Team"
+          },
           "tools": {
             "anyOf": [
               {
@@ -110,7 +122,7 @@
         "type": "string"
       },
       "AgentsResponse": {
-        "description": "Body of `GET /v1/agents`: the subagent roster.\n\nOnly subagents are listed. The manager is not one -- it is the main thread agent you\ntalk to, so it has no name to invoke and nothing to discover; `team=true` on\n`POST /v1/runs` is what selects it. See `agents/team.py`.\n\nKept an envelope rather than a bare array so fields can be added without breaking\nclients, and because a top-level JSON array is awkward to extend.",
+        "description": "Body of `GET /v1/agents`: the subagent roster.\n\nOnly subagents are listed. The manager is not one -- it is the main thread agent you\ntalk to, so it has no name to invoke and nothing to discover; `team=<name>` on\n`POST /v1/runs` is what selects it and its workers. See `agents/team.py`.\n\nKept an envelope rather than a bare array so fields can be added without breaking\nclients, and because a top-level JSON array is awkward to extend.",
         "properties": {
           "agents": {
             "items": {
@@ -321,10 +333,16 @@
             "type": "string"
           },
           "team": {
-            "default": false,
-            "description": "Run the manager agent, which may delegate to the workers in agents/team.py.",
-            "title": "Team",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of a team from agents/team.py to run as manager+workers instead of the solo agent, e.g. 'engineering'. Omit or null for a solo agent. See GET /v1/agents for the current roster, grouped by team.",
+            "title": "Team"
           }
         },
         "required": [
@@ -446,10 +464,16 @@
             "title": "Profile"
           },
           "team": {
-            "default": false,
-            "description": "Open the session as the manager agent, which may delegate to the workers in agents/team.py. Fixed at open time.",
-            "title": "Team",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of a team from agents/team.py to open the session as, instead of the solo agent, e.g. 'engineering'. Omit or null for a solo agent. Fixed at open time -- see MessageRequest.",
+            "title": "Team"
           }
         },
         "title": "SessionCreateRequest",
@@ -502,9 +526,16 @@
             "type": "string"
           },
           "team": {
-            "description": "Whether this session runs the manager agent.",
-            "title": "Team",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Team this session runs as manager+workers, or null for a solo agent.",
+            "title": "Team"
           },
           "turns": {
             "description": "Messages completed in this session so far.",

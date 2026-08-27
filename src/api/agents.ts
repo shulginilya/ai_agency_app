@@ -19,8 +19,8 @@ import {
  * SDK exposes `interrupt()` on the main session, not on individual workers, so a
  * worker is never paused or stopped as a distinct state — it is running or it is
  * gone. Work reaches an agent by being delegated to it from a team run
- * (`POST /v1/runs` or a session opened with `team: true`), not by being pushed
- * at it. The client used to carry those three command routes; the contract test
+ * (`POST /v1/runs` or a session opened with `team: '<name>'`), not by being
+ * pushed at it. The client used to carry those three command routes; the contract test
  * is what finally proved they had never existed.
  *
  * The version prefix lives in the path and nowhere else — not in the base URL,
@@ -57,7 +57,11 @@ export async function getAgent(id: string, { client = apiClient, signal }: Agent
   return data;
 }
 
-/** True when this agent is only loaded for a team run — worth saying on the roster. */
+/**
+ * True when this agent is only loaded for a team run — worth saying on the
+ * roster. Which team is `agent.team`; `availability` only says whether there is
+ * one.
+ */
 export function isTeamOnly(agent: AgentInfo): boolean {
   return agent.availability === 'team';
 }

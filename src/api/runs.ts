@@ -39,8 +39,12 @@ export type CreateRunInput = {
   prompt: string;
   /** Override the server's configured profile for this run. */
   profile?: RunProfile | null;
-  /** Run the manager agent, which may delegate to the workers in the roster. */
-  team?: boolean;
+  /**
+   * Name of a team to run as manager+workers, e.g. `engineering`. Omit or null
+   * for the solo agent. `GET /v1/agents` publishes the names — see
+   * `teamsFromRoster` in `src/api/teams.ts`.
+   */
+  team?: string | null;
 };
 
 /**
@@ -59,7 +63,10 @@ export async function createRun(
   // `null`, or a request that means "use the default" becomes a 422.
   const body: Record<string, unknown> = { prompt };
   if (profile) body.profile = profile;
-  if (team !== undefined) body.team = team;
+  // Truthiness, not `!== undefined`: solo is the server's default and is
+  // spelled by *omitting* the key. This was `team !== undefined` while `team`
+  // was a boolean, where `false` was a real choice worth sending.
+  if (team) body.team = team;
 
   const { data } = await client.post(RUNS_PATH, body, {
     schema: RunResponseSchema,

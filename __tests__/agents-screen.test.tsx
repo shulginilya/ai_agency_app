@@ -28,8 +28,12 @@ const ROSTER: Routes = {
   '/v1/agents': () =>
     fakeResponse({
       body: {
-        agents: [agentInfo({ status: 'running' }), agentInfo({ id: 'planner', name: 'planner', availability: 'team' })],
-        count: 2,
+        agents: [
+          agentInfo({ status: 'running' }),
+          agentInfo({ id: 'planner', name: 'planner', availability: 'team', team: 'engineering' }),
+          agentInfo({ id: 'scribe', name: 'scribe', availability: 'team', team: 'docs' }),
+        ],
+        count: 3,
       },
     }),
 };
@@ -56,12 +60,24 @@ describe('Agents screen', () => {
     expect(screen.getByTestId('agent-meta-researcher')).toHaveTextContent(/3 invocations/);
   });
 
-  it('marks the agents a solo run will never reach', async () => {
+  it('marks the agents a solo run will never reach, by the team that loads them', async () => {
     stubApi(ROSTER);
     renderWithQuery(<AgentsScreen />);
 
     await waitFor(() => expect(screen.getByTestId('agent-team-planner')).toBeTruthy());
+    // The name, not the word "team" — with more than one, "team" no longer says
+    // which run would reach this agent.
+    expect(screen.getByTestId('agent-team-planner')).toHaveTextContent('engineering');
     expect(screen.queryByTestId('agent-team-researcher')).toBeNull();
+  });
+
+  it('groups the roster by team, with the always-loaded agents above the split', async () => {
+    stubApi(ROSTER);
+    renderWithQuery(<AgentsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('team-section-engineering')).toBeTruthy());
+    expect(screen.getByTestId('team-section-docs')).toBeTruthy();
+    expect(screen.getByTestId('team-section-always')).toBeTruthy();
   });
 
   it('shows an empty state when the server has no agents', async () => {

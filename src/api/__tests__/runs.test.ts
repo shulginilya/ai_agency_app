@@ -42,9 +42,19 @@ describe('createRun', () => {
   it('sends profile and team when they are chosen', async () => {
     const fetchImpl = fetchSequence([fakeResponse({ body: runResponse() })]);
 
-    await createRun({ prompt: 'go', profile: 'sandboxed', team: true }, { client: clientWith(fetchImpl) });
+    await createRun({ prompt: 'go', profile: 'sandboxed', team: 'engineering' }, { client: clientWith(fetchImpl) });
 
-    expect(bodyOf(fetchImpl)).toEqual({ prompt: 'go', profile: 'sandboxed', team: true });
+    expect(bodyOf(fetchImpl)).toEqual({ prompt: 'go', profile: 'sandboxed', team: 'engineering' });
+  });
+
+  it('omits team for a solo run rather than spelling it null', async () => {
+    // Solo is the server's default and is spelled by leaving the key out. This
+    // was `team: false` on the wire until the server made `team` a name.
+    const fetchImpl = fetchSequence([fakeResponse({ body: runResponse() })]);
+
+    await createRun({ prompt: 'go', team: null }, { client: clientWith(fetchImpl) });
+
+    expect(bodyOf(fetchImpl)).toEqual({ prompt: 'go' });
   });
 
   it('treats an agent-side failure as data, not as an exception', async () => {

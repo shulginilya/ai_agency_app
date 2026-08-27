@@ -18,6 +18,7 @@ import { MessageComposer } from '@/components/MessageComposer';
 import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { useConversation, type ConversationMode } from '@/hooks/useConversation';
+import { useTeams } from '@/hooks/useTeams';
 import { radius, spacing, useTheme } from '@/theme';
 
 const MODES: { mode: ConversationMode; label: string; hint: string }[] = [
@@ -30,25 +31,48 @@ const MODES: { mode: ConversationMode; label: string; hint: string }[] = [
  *
  * It talks to the server, not to an agent — that distinction is the server's,
  * and pretending otherwise would be a lie the UI tells. `team` is what brings
- * the roster into it: the manager agent runs and delegates to the workers on the
- * Agents tab, and the reply says underneath it who it handed work to.
+ * the roster into it: the named team's manager runs and delegates to its
+ * workers on the Agents tab, and the reply says underneath it who it handed
+ * work to.
  *
- * Profile and team are locked once a session is open, because they are baked
- * into the options the session connected with — sending them on a turn is a 422.
- * The controls disable themselves rather than letting you discover that.
+ * The team names come from the roster, not from a teams endpoint — there is
+ * none. See `src/api/teams.ts` for what that costs.
+ *
+ * Profile and team are baked into the options a session connected with, and
+ * sending either on a turn is a 422. Profile therefore locks once a session is
+ * open. Team does not: picking another one closes the session then and there,
+ * because "switch team" with no way to switch is not a feature. The hint says
+ * so before you press it, and `useConversation` closes it again as a backstop
+ * if anything drives the hook past this screen.
  */
 export function Conversation() {
   const { colors } = useTheme();
   const [mode, setMode] = useState<ConversationMode>('session');
   const [profile, setProfile] = useState<RunProfile | null>(null);
-  const [team, setTeam] = useState(false);
+  const [team, setTeam] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
+  const { teams } = useTeams();
   const conversation = useConversation({ mode, profile, team });
   const { entries, session, isSending } = conversation;
   const locked = session !== null;
   const tooLong = promptTooLong(draft);
+
+  /**
+   * Picking a team while a session is open ends that session: its team was
+   * fixed when it connected. Closing here rather than on the next send means
+   * the transcript says "Session closed." at the moment you pressed, instead of
+   * a subprocess quietly outliving the choice.
+   */
+  const chooseTeam = useCallback(
+    (next: string | null) => {
+      if (next === team) return;
+      if (session) conversation.close();
+      setTeam(next);
+    },
+    [team, session, conversation],
+  );
 
   // The reply lands all at once and can be long: keep the newest line in view.
   useEffect(() => {
@@ -80,7 +104,7 @@ export function Conversation() {
               <Text style={[styles.title, { color: colors.text }]}>Conversation</Text>
               <Text testID="conversation-target" style={[styles.subtitle, { color: colors.textMuted }]}>
                 {session
-                  ? `${session.id} · ${session.turns} turn${session.turns === 1 ? '' : 's'}`
+                  ? `${session.id} · ${session.team ?? 'solo'} · ${session.turns} turn${session.turns === 1 ? '' : 's'}`
                   : mode === 'session'
                     ? 'POST /v1/sessions'
                     : 'POST /v1/runs'}
@@ -124,25 +148,50 @@ export function Conversation() {
 
           <View style={styles.segments}>
             <Pressable
-              testID="toggle-team"
+              testID="team-solo"
               accessibilityRole="button"
-              accessibilityLabel="Run as the team manager"
-              accessibilityState={{ selected: team, disabled: locked }}
-              disabled={locked}
-              onPress={() => setTeam((current) => !current)}
+              accessibilityLabel="Run as the solo agent"
+              accessibilityState={{ selected: team === null }}
+              onPress={() => chooseTeam(null)}
               style={[
                 styles.segment,
                 {
-                  borderColor: team ? colors.accent : colors.border,
-                  backgroundColor: team ? `${colors.accent}1A` : colors.background,
-                  opacity: locked ? 0.5 : 1,
+                  borderColor: team === null ? colors.accent : colors.border,
+                  backgroundColor: team === null ? `${colors.accent}1A` : colors.background,
                 },
               ]}
             >
-              <Ionicons name="people-outline" size={13} color={team ? colors.accent : colors.text} />
-              <Text style={[styles.segmentLabel, { color: team ? colors.accent : colors.text }]}>Team</Text>
+              <Ionicons name="person-outline" size={13} color={team === null ? colors.accent : colors.text} />
+              <Text style={[styles.segmentLabel, { color: team === null ? colors.accent : colors.text }]}>Solo</Text>
             </Pressable>
 
+            {teams.map(({ name, agents }) => {
+              const active = team === name;
+              return (
+                <Pressable
+                  key={name}
+                  testID={`team-${name}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Run as the ${name} team, ${agents.length} worker${agents.length === 1 ? '' : 's'}`}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => chooseTeam(name)}
+                  style={[
+                    styles.segment,
+                    {
+                      borderColor: active ? colors.accent : colors.border,
+                      backgroundColor: active ? `${colors.accent}1A` : colors.background,
+                    },
+                  ]}
+                >
+                  <Ionicons name="people-outline" size={13} color={active ? colors.accent : colors.text} />
+                  <Text style={[styles.segmentLabel, { color: active ? colors.accent : colors.text }]}>{name}</Text>
+                  <Text style={[styles.segmentCount, { color: colors.textMuted }]}>{agents.length}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.segments}>
             {RUN_PROFILES.map((value) => {
               const active = profile === value;
               return (
@@ -171,8 +220,10 @@ export function Conversation() {
 
           <Text style={[styles.hint, { color: colors.textMuted }]}>
             {locked
-              ? 'Profile and team are fixed for the life of a session. Close it to change them.'
-              : (MODES.find((entry) => entry.mode === mode)?.hint ?? '')}
+              ? 'Profile is fixed for the life of this session. Picking another team closes it and starts a new one.'
+              : teams.length === 0
+                ? `${MODES.find((entry) => entry.mode === mode)?.hint ?? ''} No teams on this server — the roster names none.`
+                : (MODES.find((entry) => entry.mode === mode)?.hint ?? '')}
           </Text>
 
           {session ? (
@@ -276,6 +327,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   segmentLabel: { fontSize: 13, fontWeight: '600' },
+  segmentCount: { fontSize: 11, fontFamily: 'monospace' },
   hint: { fontSize: 12, lineHeight: 17 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headerError: { fontSize: 12 },

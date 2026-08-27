@@ -5,6 +5,7 @@ import { describeApiError } from '@/api/errors';
 import type { AgentInfo } from '@/api/schemas';
 import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
+import { teamsFromRoster } from '@/api/teams';
 import { DEFAULT_ROSTER_POLL_MS, useAgents } from '@/hooks/useAgents';
 import { STATUS_TONE } from '@/screens/AgentDetail';
 import { radius, spacing, useTheme } from '@/theme';
@@ -15,8 +16,13 @@ import { radius, spacing, useTheme } from '@/theme';
  * Read-only, because that is all the API offers — there is no start, pause or
  * stop, and pretending otherwise is what the contract test finally caught. What
  * a row is worth showing is what decides whether the manager will route work
- * here: the description, whether the agent is loaded on every run or only on a
- * team run, and its live status in this process.
+ * here: the description, which team's runs load it, and its live status in this
+ * process.
+ *
+ * Grouped by `AgentInfo.team`, because since 2026-08-27 there is more than one
+ * of them and a flat list cannot answer "who would this team's manager reach".
+ * The `always` agents come first: they are loaded whichever team you run, so
+ * they belong above the split rather than repeated inside every section.
  *
  * Polled, because `status` moves while a run is in flight and this screen is
  * exactly where someone watches that happen.
@@ -25,6 +31,9 @@ export default function AgentsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const agents = useAgents({ pollIntervalMs: DEFAULT_ROSTER_POLL_MS });
+  const roster = agents.data ?? [];
+  const always = roster.filter((agent) => !agent.team);
+  const teams = teamsFromRoster(roster);
 
   return (
     <Screen>
@@ -32,7 +41,8 @@ export default function AgentsScreen() {
         <View style={styles.header}>
           <Text style={[styles.h1, { color: colors.text }]}>Agents</Text>
           <Text style={[styles.sub, { color: colors.textMuted }]}>
-            Subagents the manager can delegate to. Tap one for its model, tools and turn cap.
+            Subagents a manager can delegate to, grouped by the team that loads them. Tap one for its model, tools and
+            turn cap.
           </Text>
         </View>
 
@@ -43,14 +53,38 @@ export default function AgentsScreen() {
             <Text testID="agents-error" style={[styles.cardText, { color: colors.textMuted }]}>
               {describeApiError(agents.error, 'Could not load agents.')}
             </Text>
-          ) : agents.data && agents.data.length > 0 ? (
-            agents.data.map((agent) => (
-              <AgentRow
-                key={agent.id}
-                agent={agent}
-                onPress={() => router.push(`/agent/${encodeURIComponent(agent.id)}`)}
-              />
-            ))
+          ) : roster.length > 0 ? (
+            <>
+              {always.length > 0 ? (
+                <View testID="team-section-always" style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                    Loaded on every run · {always.length}
+                  </Text>
+                  {always.map((agent) => (
+                    <AgentRow
+                      key={agent.id}
+                      agent={agent}
+                      onPress={() => router.push(`/agent/${encodeURIComponent(agent.id)}`)}
+                    />
+                  ))}
+                </View>
+              ) : null}
+
+              {teams.map(({ name, agents: members }) => (
+                <View key={name} testID={`team-section-${name}`} style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                    Team {name} · {members.length}
+                  </Text>
+                  {members.map((agent) => (
+                    <AgentRow
+                      key={agent.id}
+                      agent={agent}
+                      onPress={() => router.push(`/agent/${encodeURIComponent(agent.id)}`)}
+                    />
+                  ))}
+                </View>
+              ))}
+            </>
           ) : (
             <Text testID="agents-empty" style={[styles.cardText, { color: colors.textMuted }]}>
               No agents registered on this server.
@@ -59,8 +93,9 @@ export default function AgentsScreen() {
         </View>
 
         <Text style={[styles.footnote, { color: colors.textMuted }]}>
-          The manager itself is not on this list — it is the thread you talk to on the Conversation tab. Turn Team on
-          there and it may delegate to the agents marked <Text style={styles.code}>team</Text>.
+          No manager is on this list — a manager is the thread you talk to on the Conversation tab. Pick a team there
+          and its manager may delegate to that team&apos;s workers, plus everything under{' '}
+          <Text style={styles.code}>Loaded on every run</Text>.
         </Text>
       </ScrollView>
     </Screen>
@@ -83,7 +118,9 @@ function AgentRow({ agent, onPress }: { agent: AgentInfo; onPress: () => void })
           <Text style={[styles.agentName, { color: colors.text }]}>{agent.name}</Text>
           {agent.availability === 'team' ? (
             <View testID={`agent-team-${agent.id}`} style={[styles.tag, { borderColor: colors.border }]}>
-              <Text style={[styles.tagText, { color: colors.textMuted }]}>team</Text>
+              {/* The name, not the word "team": with more than one of them,
+                  "team" no longer says which run would reach this agent. */}
+              <Text style={[styles.tagText, { color: colors.textMuted }]}>{agent.team ?? 'team'}</Text>
             </View>
           ) : null}
         </View>
@@ -121,6 +158,8 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   cardText: { fontSize: 13, lineHeight: 18 },
+  section: { gap: spacing.lg },
+  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   footnote: { fontSize: 12, lineHeight: 18, marginTop: spacing.lg },
   code: { fontFamily: 'monospace' },
   agentRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

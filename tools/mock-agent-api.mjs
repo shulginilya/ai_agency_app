@@ -57,6 +57,7 @@ const AGENT_SEED = [
     status: 'idle',
     description: 'Reads the brief and pulls together background before anyone writes code.',
     availability: 'always',
+    team: null,
     model: 'sonnet',
     tools: ['Read', 'Grep', 'WebSearch'],
     max_turns: 12,
@@ -68,12 +69,49 @@ const AGENT_SEED = [
     status: 'running',
     description: 'Reviews a diff and reports what would break.',
     availability: 'team',
+    team: 'engineering',
     model: null,
     tools: null,
     max_turns: null,
     invocations: 3,
   },
+  {
+    id: 'builder',
+    name: 'builder',
+    status: 'idle',
+    description: 'Applies the plan and runs the tests.',
+    availability: 'team',
+    team: 'engineering',
+    model: 'sonnet',
+    tools: ['Read', 'Write', 'Bash'],
+    max_turns: 20,
+    invocations: 1,
+  },
+  {
+    id: 'scribe',
+    name: 'scribe',
+    status: 'idle',
+    description: 'Writes the run up afterwards, for people who were not watching.',
+    availability: 'team',
+    team: 'docs',
+    model: 'haiku',
+    tools: ['Read', 'Write'],
+    max_turns: 4,
+    invocations: 0,
+  },
 ];
+
+/**
+ * The teams the mock knows, derived the same way the app derives them: a team
+ * exists because a worker names it. Two of them on purpose — a mock with one
+ * team cannot catch a client that hardcodes it.
+ */
+const teamNames = () => [...new Set(AGENT_SEED.map((agent) => agent.team).filter(Boolean))];
+
+/** The real server 422s an unknown team; a mock that accepted anything would hide it. */
+function unknownTeam(team) {
+  return team !== undefined && team !== null && !teamNames().includes(team);
+}
 
 const seedAgents = () => AGENT_SEED.map((agent) => ({ ...agent, updated_at: new Date().toISOString() }));
 
@@ -92,7 +130,8 @@ function newSession({ profile, team }) {
   const session = {
     id: `sess_${sessionCounter}`,
     profile: profile ?? 'dev',
-    team: Boolean(team),
+    // The name, or null for solo — a boolean until the server grew a second team.
+    team: team ?? null,
     status: 'idle',
     turns: 0,
     created_at: now.toISOString(),
@@ -110,7 +149,10 @@ function newSession({ profile, team }) {
  */
 function buildRun({ prompt, team, profile, isError = false }) {
   runCounter += 1;
-  const delegated = team ? ['researcher'] : [];
+  // Delegation comes from the roster, so a run as `engineering` names
+  // engineering's workers and never docs'. A mock that always said
+  // `['researcher']` would let a team mix-up through untouched.
+  const delegated = team ? AGENT_SEED.filter((agent) => agent.team === team).map((agent) => agent.name) : [];
   return {
     run_id: `run_${runCounter}`,
     profile: profile ?? 'dev',
@@ -177,6 +219,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function runOrProblem(res, { prompt, team, profile, instance }) {
   if (typeof prompt !== 'string' || prompt.trim() === '') {
     return { failed: true, sent: problem(res, 422, 'Request failed validation', 'prompt must not be empty', instance) };
+  }
+  if (unknownTeam(team)) {
+    return {
+      failed: true,
+      sent: problem(res, 422, 'Request failed validation', `no team named ${team}`, instance),
+    };
   }
   if (prompt.length > 20_000) {
     return { failed: true, sent: problem(res, 422, 'Request failed validation', 'prompt is too long', instance) };
@@ -290,6 +338,9 @@ const server = createServer(async (req, res) => {
     const body = await readJson(req);
     if (body.profile !== undefined && !['dev', 'sandboxed', 'eval'].includes(body.profile)) {
       return problem(res, 422, 'Request failed validation', 'profile must be dev, sandboxed or eval', pathname);
+    }
+    if (unknownTeam(body.team)) {
+      return problem(res, 422, 'Request failed validation', `no team named ${body.team}`, pathname);
     }
     if (sessions.size >= 8) {
       return problem(res, 503, 'No session slot available', 'Too many open sessions; close one.', pathname);
