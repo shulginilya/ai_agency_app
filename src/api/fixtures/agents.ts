@@ -17,7 +17,11 @@ import type { AgentInfo } from '@/api/schemas';
  */
 export const MOCK_AGENTS_ENABLED = process.env.EXPO_PUBLIC_MOCK_AGENTS === '1';
 
-/** One per status, so every StatusPill tone and row state is on screen at once. */
+/**
+ * One per status, so every StatusPill tone and row state is on screen at once —
+ * and two named teams plus the `always` pair, so the roster's grouping and the
+ * Conversation tab's team picker both have something to show.
+ */
 const SEED: readonly AgentInfo[] = [
   {
     id: 'researcher',
@@ -25,6 +29,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'running',
     description: 'Reads the brief and pulls together background on each account.',
     availability: 'always',
+    team: null,
     updated_at: '2026-08-21T07:40:00Z',
     model: 'sonnet',
     tools: ['Read', 'Grep', 'WebSearch'],
@@ -37,6 +42,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'idle',
     description: 'Reviews a diff and reports what would break.',
     availability: 'always',
+    team: null,
     updated_at: '2026-08-21T07:12:00Z',
     model: 'opus',
     tools: ['Read', 'Grep'],
@@ -49,6 +55,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'starting',
     description: 'Turns a goal into an ordered plan before anyone writes code.',
     availability: 'team',
+    team: 'engineering',
     updated_at: '2026-08-21T07:44:00Z',
     model: null,
     tools: null,
@@ -61,6 +68,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'paused',
     description: 'Writes the run up afterwards, for people who were not watching.',
     availability: 'team',
+    team: 'docs',
     updated_at: '2026-08-21T06:30:00Z',
     model: 'haiku',
     tools: ['Read', 'Write'],
@@ -73,6 +81,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'error',
     description: 'Applies the plan. Last delegation failed inside the tool call.',
     availability: 'team',
+    team: 'engineering',
     updated_at: '2026-08-21T05:58:00Z',
     model: 'sonnet',
     tools: ['Read', 'Write', 'Bash'],
@@ -85,6 +94,7 @@ const SEED: readonly AgentInfo[] = [
     status: 'stopped',
     description: 'Sweeps finished runs into the archive.',
     availability: 'team',
+    team: 'docs',
     updated_at: '2026-08-20T18:05:00Z',
     model: 'haiku',
     tools: ['Read'],

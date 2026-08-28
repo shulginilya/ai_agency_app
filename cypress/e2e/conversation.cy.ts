@@ -32,12 +32,26 @@ describe('Conversation', () => {
     cy.byTestId('chat-thread').should('contain.text', 'tools:');
   });
 
-  it('locks profile and team once the session is open', () => {
+  it('locks profile once the session is open', () => {
     cy.byTestId('profile-eval').click();
     cy.sendPrompt('go');
 
     cy.byTestId('chat-thread').should('contain.text', 'profile eval');
     cy.byTestId('profile-eval').should('have.attr', 'aria-disabled', 'true');
+  });
+
+  it('runs as the team you pick, and switching teams ends the session', () => {
+    // Team is fixed at open time — `MessageRequest` forbids it — so the only
+    // honest way to switch is to close and open another.
+    cy.byTestId('team-engineering').click();
+    cy.sendPrompt('go');
+
+    cy.byTestId('chat-thread').should('contain.text', 'profile dev · engineering');
+    cy.byTestId('chat-thread').should('contain.text', 'reviewer');
+
+    cy.byTestId('team-docs').click();
+    cy.byTestId('chat-thread').should('contain.text', 'Session closed.');
+    cy.byTestId('close-session').should('not.exist');
   });
 
   it('closes the session, and the next message opens a fresh one', () => {

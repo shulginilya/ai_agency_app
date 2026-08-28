@@ -20,6 +20,9 @@ export function agentInfo(overrides: Partial<AgentInfo> = {}): AgentInfo {
     tools: ['Read', 'Grep'],
     max_turns: 12,
     invocations: 3,
+    // An `always` agent belongs to no team. A fixture for a team worker sets
+    // both `availability: 'team'` and the name — the roster groups on the name.
+    team: null,
     ...overrides,
   };
 }
@@ -47,7 +50,7 @@ export function sessionInfo(overrides: Partial<SessionInfo> = {}): SessionInfo {
   return {
     id: 'sess_1',
     profile: 'dev',
-    team: false,
+    team: null,
     status: 'idle',
     turns: 0,
     created_at: '2026-08-21T09:00:00.000Z',

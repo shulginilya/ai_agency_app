@@ -13,11 +13,19 @@ describe('Agents', () => {
     cy.byTestId('agent-meta-researcher').should('contain.text', 'sonnet');
   });
 
-  it('marks the agents only a team run can reach', () => {
+  it('marks the agents only a team run can reach, by the team that loads them', () => {
     cy.visit('/');
 
-    cy.byTestId('agent-team-reviewer').should('contain.text', 'team');
+    cy.byTestId('agent-team-reviewer').should('contain.text', 'engineering');
     cy.byTestId('agent-team-researcher').should('not.exist');
+  });
+
+  it('groups the roster by team, with the always-loaded agents above the split', () => {
+    cy.visit('/');
+
+    cy.byTestId('team-section-always').should('contain.text', 'researcher');
+    cy.byTestId('team-section-engineering').should('contain.text', 'reviewer');
+    cy.byTestId('team-section-docs').should('contain.text', 'scribe');
   });
 
   it('opens an agent and shows what constrains it — with no controls, because there are none', () => {

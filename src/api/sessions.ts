@@ -44,8 +44,12 @@ export type SessionsApiOptions = {
 export type OpenSessionInput = {
   /** Pin the profile for the session's whole life. Omit for the server's own. */
   profile?: RunProfile | null;
-  /** Open as the manager agent, which may delegate to the roster. */
-  team?: boolean;
+  /**
+   * Name of a team to open the session as, e.g. `engineering`. Omit or null for
+   * the solo agent. Fixed for the session's whole life — `MessageRequest`
+   * forbids `team`, so switching means closing this one and opening another.
+   */
+  team?: string | null;
 };
 
 /** 201, and you now own a subprocess. Close it, or let `expires_at` collect it. */
@@ -56,7 +60,8 @@ export async function openSession(
   // `extra="forbid"`: only send what the caller actually chose.
   const body: Record<string, unknown> = {};
   if (profile) body.profile = profile;
-  if (team !== undefined) body.team = team;
+  // Solo is spelled by omitting the key, same as `profile`. See `createRun`.
+  if (team) body.team = team;
 
   const { data } = await client.post(SESSIONS_PATH, body, {
     schema: SessionInfoSchema,

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { requestLog } from '@/api/log';
 import { Conversation } from '@/screens/Conversation';
-import { messageResponse, runResponse, sessionInfo } from '@/test-utils/fixtures';
+import { agentInfo, messageResponse, runResponse, sessionInfo } from '@/test-utils/fixtures';
 import { fakeResponse } from '@/test-utils/http';
 import { renderWithQuery } from '@/test-utils/render';
 
@@ -17,15 +17,38 @@ function stub(handler: Handler) {
   return fetchMock;
 }
 
+/**
+ * The roster the team picker is built from. There is no teams endpoint — the
+ * names come from `AgentInfo.team`, so a screen test that stubs sessions but
+ * not agents would render a picker with nothing in it.
+ */
+const ROSTER = {
+  agents: [
+    agentInfo({ id: 'researcher', name: 'researcher' }),
+    agentInfo({ id: 'planner', name: 'planner', availability: 'team', team: 'engineering' }),
+    agentInfo({ id: 'scribe', name: 'scribe', availability: 'team', team: 'docs' }),
+  ],
+  count: 3,
+};
+
 const sessionApi =
   (turn: () => Response = () => fakeResponse({ body: messageResponse() })): Handler =>
   (url, init) => {
     const path = new URL(url).pathname;
+    if (path === '/v1/agents') return fakeResponse({ body: ROSTER });
     if (path === '/v1/sessions' && init?.method === 'POST') return fakeResponse({ status: 201, body: sessionInfo() });
     if (path.endsWith('/messages')) return turn();
     if (init?.method === 'DELETE') return fakeResponse({ status: 204 });
     return fakeResponse({ status: 404, body: { detail: 'Not Found' } });
   };
+
+/** The body of the nth matching request, parsed. */
+function bodyOfCall(fetchMock: jest.Mock, predicate: (path: string, init?: RequestInit) => boolean) {
+  const call = fetchMock.mock.calls.find(([url, init]) =>
+    predicate(new URL(url as string).pathname, init as RequestInit | undefined),
+  );
+  return call ? JSON.parse((call[1] as RequestInit).body as string) : undefined;
+}
 
 function type(text: string) {
   fireEvent.changeText(screen.getByTestId('composer-input'), text);
@@ -54,17 +77,62 @@ describe('Conversation screen', () => {
     expect(screen.getByTestId('session-status')).toHaveTextContent('idle');
   });
 
-  it('locks profile and team once a session exists, because the server fixed them', async () => {
+  it('locks profile and mode once a session exists, because the server fixed them', async () => {
     stub(sessionApi());
     renderWithQuery(<Conversation />);
 
-    expect(screen.getByTestId('toggle-team')).toBeEnabled();
-
     type('go');
 
-    await waitFor(() => expect(screen.getByTestId('toggle-team')).toBeDisabled());
-    expect(screen.getByTestId('profile-dev')).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId('profile-dev')).toBeDisabled());
     expect(screen.getByTestId('mode-run')).toBeDisabled();
+  });
+
+  it('offers every team the roster names, plus solo', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await waitFor(() => expect(screen.getByTestId('team-engineering')).toBeTruthy());
+    expect(screen.getByTestId('team-docs')).toBeTruthy();
+    expect(screen.getByTestId('team-solo')).toBeTruthy();
+    // `researcher` is an `always` agent and names no team, so it is not one.
+    expect(screen.queryByTestId('team-researcher')).toBeNull();
+  });
+
+  it('opens the session as the team you picked', async () => {
+    const fetchMock = stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await waitFor(() => expect(screen.getByTestId('team-engineering')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('team-engineering'));
+    type('go');
+
+    await waitFor(() => expect(screen.getByText('Four leads, ranked.')).toBeTruthy());
+    expect(bodyOfCall(fetchMock, (path, init) => path === '/v1/sessions' && init?.method === 'POST')).toEqual({
+      team: 'engineering',
+    });
+  });
+
+  it('closes the open session when you pick a different team, because team is fixed at open time', async () => {
+    const fetchMock = stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await waitFor(() => expect(screen.getByTestId('team-docs')).toBeTruthy());
+    type('go');
+    await waitFor(() => expect(screen.getByTestId('session-status')).toBeTruthy());
+
+    fireEvent.press(screen.getByTestId('team-docs'));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            new URL(url as string).pathname === '/v1/sessions/sess_1' &&
+            (init as RequestInit | undefined)?.method === 'DELETE',
+        ),
+      ).toBe(true),
+    );
+    // The handle is gone, so the screen is back to advertising the open route.
+    await waitFor(() => expect(screen.queryByTestId('session-status')).toBeNull());
   });
 
   it('sends a one-shot run to /v1/runs instead, when that mode is chosen', async () => {

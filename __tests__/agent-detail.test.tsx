@@ -40,11 +40,19 @@ describe('Agent detail', () => {
     await waitFor(() => expect(screen.getByTestId('detail-invocations')).toHaveTextContent(/never started/));
   });
 
-  it('says how work reaches a team-only agent', async () => {
-    stub(() => fakeResponse({ body: agentInfo({ availability: 'team' }) }));
+  it('says how work reaches a team-only agent, naming the team', async () => {
+    stub(() => fakeResponse({ body: agentInfo({ availability: 'team', team: 'engineering' }) }));
     renderWithQuery(<AgentDetail agentId="planner" />);
 
-    await waitFor(() => expect(screen.getByTestId('detail-how-to-reach')).toHaveTextContent(/Team on/));
+    await waitFor(() => expect(screen.getByTestId('detail-how-to-reach')).toHaveTextContent(/engineering/));
+    expect(screen.getByTestId('detail-team')).toHaveTextContent('engineering');
+  });
+
+  it('says an always-loaded agent belongs to no team', async () => {
+    stub(() => fakeResponse({ body: agentInfo() }));
+    renderWithQuery(<AgentDetail agentId="researcher" />);
+
+    await waitFor(() => expect(screen.getByTestId('detail-team')).toHaveTextContent(/none/));
   });
 
   it('offers no controls, because the API has none', async () => {

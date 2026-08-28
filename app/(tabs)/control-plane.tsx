@@ -188,7 +188,9 @@ function SessionRow({
         <Text testID={`session-meta-${session.id}`} style={[styles.sessionMeta, { color: colors.textMuted }]}>
           {[
             session.profile,
-            session.team ? 'team' : 'solo',
+            // The team's name, or `solo`. A bare "team" stopped being an answer
+            // when the server grew more than one.
+            session.team ?? 'solo',
             `${session.turns} turn${session.turns === 1 ? '' : 's'}`,
             `active ${new Date(session.last_active_at).toLocaleTimeString()}`,
           ].join(' · ')}

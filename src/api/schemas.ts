@@ -69,7 +69,7 @@ export const AGENT_STATUSES = ['idle', 'starting', 'running', 'paused', 'error',
 export const AgentStatusSchema = z.enum(AGENT_STATUSES);
 export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
-/** `always` — loaded on every run. `team` — only when the run is started with `team=true`. */
+/** `always` — loaded on every run. `team` — only when the run is started with `team=<name>`. */
 export const AGENT_AVAILABILITY = ['always', 'team'] as const;
 export const AgentAvailabilitySchema = z.enum(AGENT_AVAILABILITY);
 export type AgentAvailability = z.infer<typeof AgentAvailabilitySchema>;
@@ -109,6 +109,16 @@ export const AgentInfoSchema = z.object({
   tools: z.array(z.string()).nullish(),
   max_turns: z.number().int().nullish(),
   invocations: z.number().int().nullish(),
+  /**
+   * Which team this worker belongs to, or null for an `always` agent. Pass it
+   * as `team` on a run or a session to reach the agents that carry it — this
+   * field is the only place the set of teams is published, so it is what
+   * `teamsFromRoster` derives the picker from.
+   *
+   * `.nullish()` and not `.nullable()`: the spec leaves `team` out of
+   * `AgentInfo.required`, so the key may be absent as well as null.
+   */
+  team: z.string().nullish(),
 });
 export type AgentInfo = z.infer<typeof AgentInfoSchema>;
 
@@ -203,7 +213,15 @@ export const SessionInfoSchema = z.object({
   id: z.string(),
   /** Fixed at open time. Sending `profile` on a turn is a 422, not a no-op. */
   profile: z.string(),
-  team: z.boolean(),
+  /**
+   * The team this session runs as manager+workers, or null for a solo agent.
+   * A name since the server grew more than one team — it was a boolean until
+   * 2026-08-27, and the contract test is what caught the change.
+   *
+   * Fixed at open time like `profile`: `MessageRequest` forbids `team`, so
+   * changing it means closing this session and opening another.
+   */
+  team: z.string().nullish(),
   status: SessionStatusSchema,
   turns: z.number().int(),
   created_at: z.string().min(1),

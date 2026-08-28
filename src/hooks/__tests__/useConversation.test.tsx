@@ -140,18 +140,71 @@ describe('useConversation in session mode', () => {
   });
 });
 
+describe('useConversation when the team changes', () => {
+  it('closes the open session and opens another, because team is fixed at open time', async () => {
+    // `MessageRequest` forbids `team`, so a session opened as one team cannot
+    // carry a turn meant for another. The screen closes it on the press; this
+    // is the backstop that keeps the hook honest whatever drives it.
+    const fetchMock = stub(sessionApi());
+    const { wrapper: Wrapper } = wrapper();
+    const { result, rerender } = renderHook(({ team }: { team: string | null }) => useConversation({ team }), {
+      wrapper: Wrapper,
+      initialProps: { team: 'engineering' as string | null },
+    });
+
+    act(() => result.current.send('go'));
+    await waitFor(() => expect(result.current.session).toMatchObject({ id: 'sess_1' }));
+    await waitFor(() => expect(result.current.isSending).toBe(false));
+
+    rerender({ team: 'docs' });
+    act(() => result.current.send('go again'));
+    await waitFor(() => expect(result.current.isSending).toBe(false));
+
+    const closed = fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'DELETE');
+    const opens = fetchMock.mock.calls.filter(
+      ([url, init]) => new URL(url as string).pathname === '/v1/sessions' && (init as RequestInit)?.method === 'POST',
+    );
+
+    expect(closed).toBe(true);
+    expect(opens).toHaveLength(2);
+    expect(JSON.parse((opens[1][1] as RequestInit).body as string)).toEqual({ team: 'docs' });
+    expect(result.current.entries.some((entry) => /Switched to docs/.test(entry.content))).toBe(true);
+  });
+
+  it('reuses the session when the team did not actually change', async () => {
+    const fetchMock = stub(sessionApi());
+    const { wrapper: Wrapper } = wrapper();
+    const { result, rerender } = renderHook(({ team }: { team: string | null }) => useConversation({ team }), {
+      wrapper: Wrapper,
+      initialProps: { team: null as string | null },
+    });
+
+    act(() => result.current.send('go'));
+    await waitFor(() => expect(result.current.isSending).toBe(false));
+
+    rerender({ team: null });
+    act(() => result.current.send('again'));
+    await waitFor(() => expect(result.current.isSending).toBe(false));
+
+    const opens = fetchMock.mock.calls.filter(
+      ([url, init]) => new URL(url as string).pathname === '/v1/sessions' && (init as RequestInit)?.method === 'POST',
+    );
+    expect(opens).toHaveLength(1);
+  });
+});
+
 describe('useConversation in run mode', () => {
   it('goes straight to /v1/runs and opens nothing', async () => {
     const fetchMock = stub(() => fakeResponse({ body: runResponse() }));
     const { wrapper: Wrapper } = wrapper();
-    const { result } = renderHook(() => useConversation({ mode: 'run', team: true }), { wrapper: Wrapper });
+    const { result } = renderHook(() => useConversation({ mode: 'run', team: 'engineering' }), { wrapper: Wrapper });
 
     act(() => result.current.send('one piece of work'));
 
     await waitFor(() => expect(result.current.entries.some((entry) => entry.role === 'agent')).toBe(true));
     expect(result.current.session).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/v1/runs'), expect.anything());
-    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ team: true });
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ team: 'engineering' });
     // No session was opened, so there is no "session opened" line either.
     expect(result.current.entries.map((entry) => entry.role)).toEqual(['user', 'agent']);
   });

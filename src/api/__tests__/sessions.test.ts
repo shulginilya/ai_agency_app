@@ -43,13 +43,21 @@ describe('openSession', () => {
 
   it('pins profile and team at open time', async () => {
     const fetchImpl = fetchSequence([
-      fakeResponse({ status: 201, body: sessionInfo({ profile: 'eval', team: true }) }),
+      fakeResponse({ status: 201, body: sessionInfo({ profile: 'eval', team: 'engineering' }) }),
     ]);
 
-    const session = await openSession({ profile: 'eval', team: true }, { client: clientWith(fetchImpl) });
+    const session = await openSession({ profile: 'eval', team: 'engineering' }, { client: clientWith(fetchImpl) });
 
-    expect(bodyOf(fetchImpl)).toEqual({ profile: 'eval', team: true });
-    expect(session).toMatchObject({ profile: 'eval', team: true });
+    expect(bodyOf(fetchImpl)).toEqual({ profile: 'eval', team: 'engineering' });
+    expect(session).toMatchObject({ profile: 'eval', team: 'engineering' });
+  });
+
+  it('omits team for a solo session rather than spelling it null', async () => {
+    const fetchImpl = fetchSequence([fakeResponse({ status: 201, body: sessionInfo() })]);
+
+    await openSession({ team: null }, { client: clientWith(fetchImpl) });
+
+    expect(bodyOf(fetchImpl)).toEqual({});
   });
 
   it('surfaces "no session slot" as the retryable thing it is', async () => {

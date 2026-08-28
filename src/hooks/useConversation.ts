@@ -38,7 +38,11 @@ export type UseConversationOptions = {
   mode?: ConversationMode;
   /** Fixed at open time for a session; per-call for a run. */
   profile?: RunProfile | null;
-  team?: boolean;
+  /**
+   * Name of the team to run as, or null for the solo agent. Fixed at open time
+   * for a session — changing it here closes the open one, see `mutationFn`.
+   */
+  team?: string | null;
   now?: () => Date;
 };
 
@@ -69,13 +73,20 @@ export type UseConversationResult = {
 export function useConversation({
   mode = 'session',
   profile = null,
-  team = false,
+  team = null,
   now = () => new Date(),
 }: UseConversationOptions = {}): UseConversationResult {
   const queryClient = useQueryClient();
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const sessionRef = useRef<SessionInfo | null>(null);
+  /**
+   * What we *asked* for when the open session was opened — deliberately not
+   * what the server echoed back. Comparing against the echo would make a server
+   * that ignores `team` (or renames it) look like a change on every send, and
+   * the guard below would close and reopen a session per message forever.
+   */
+  const openedWith = useRef<{ team: string | null; profile: RunProfile | null }>({ team: null, profile: null });
 
   const holdSession = useCallback((next: SessionInfo | null) => {
     sessionRef.current = next;
@@ -98,16 +109,46 @@ export function useConversation({
         return { run };
       }
 
+      let active = sessionRef.current;
+
+      // Team and profile are baked into the options a session connected with,
+      // and `MessageRequest` forbids both — a turn cannot carry new ones. So a
+      // session opened as another team is not reusable: hand the subprocess
+      // back and open a fresh one, rather than sending this prompt to whoever
+      // happens to be on the other end.
+      //
+      // The screen closes the session itself when you pick a different team;
+      // this is the backstop that makes the hook honest no matter what drives
+      // it. A null `profile` means "the server's own", which matches whatever
+      // the session already has.
+      const opened = openedWith.current;
+      if (active && (opened.team !== team || (profile !== null && opened.profile !== profile))) {
+        const stale = active;
+        active = null;
+        holdSession(null);
+        // Nobody is waiting on this: the prompt in hand is what matters, and
+        // the session expires server-side regardless.
+        void closeSession(stale.id).catch(() => {});
+        append(
+          systemEntry(
+            `Switched to ${team ?? 'the solo agent'} — the previous session was closed.`,
+            now,
+          ),
+        );
+      }
+
       // Lazily: the session is opened by the first message, so choosing a
       // profile costs nothing until you actually say something.
-      let active = sessionRef.current;
       if (!active) {
         active = await openSession({ profile, team });
+        openedWith.current = { team, profile };
         holdSession(active);
         void queryClient.invalidateQueries({ queryKey: qk.sessions() });
         append(
           systemEntry(
-            `Session opened · profile ${active.profile} · ${active.team ? 'team' : 'solo'}`,
+            // The server's echo, not what we sent: if it ignored the team, the
+            // transcript should say so rather than repeat our own request back.
+            `Session opened · profile ${active.profile} · ${active.team ?? 'solo'}`,
             now,
           ),
         );

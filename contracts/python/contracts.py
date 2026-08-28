@@ -123,6 +123,11 @@ class AgentInfo(BaseModel):
     tools: list[str] | None = None
     max_turns: int | None = None
     invocations: int = 0
+    # The team this worker belongs to, or None for an always-available agent.
+    # Pass it as `team` on POST /v1/runs or POST /v1/sessions to reach it. This
+    # is the only place the server publishes the set of teams, which is what the
+    # app's picker derives from.
+    team: str | None = None
 
 
 class AgentsResponse(BaseModel):
@@ -144,7 +149,9 @@ class RunRequest(BaseModel):
 
     prompt: str = Field(min_length=1, max_length=20_000)
     profile: Profile | None = None
-    team: bool = False
+    # Name of a team from agents/team.py, e.g. "engineering". None for the solo
+    # agent. A bool until 2026-08-27, when the server grew more than one team.
+    team: str | None = None
 
 
 class ToolEvent(BaseModel):
@@ -186,7 +193,9 @@ class SessionCreateRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
     profile: Profile | None = None
-    team: bool = False
+    # Name of the team to open as, or None for the solo agent. Fixed at open
+    # time — MessageRequest forbids `team`, so switching means a new session.
+    team: str | None = None
 
 
 class MessageRequest(BaseModel):
@@ -210,7 +219,9 @@ class SessionInfo(BaseModel):
 
     id: str
     profile: str
-    team: bool
+    # Required on the wire but nullable: every session reports a team, and None
+    # is the honest value for a solo one.
+    team: str | None
     status: Literal["idle", "busy"]
     turns: int
     created_at: datetime
