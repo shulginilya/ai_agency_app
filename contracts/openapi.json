@@ -13,10 +13,26 @@
             "title": "Availability",
             "type": "string"
           },
+          "barred": {
+            "description": "Packs this agent may never hold, because a ceiling forbids a tool they contain. Named explicitly so a refusal is discoverable before it happens rather than arriving as an apparently arbitrary 422.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Barred",
+            "type": "array"
+          },
           "description": {
             "description": "When the agent should be used. This is what drives the model's routing.",
             "title": "Description",
             "type": "string"
+          },
+          "grantable": {
+            "description": "Capability packs this agent may hold. Pass one under `grants.agents` on a run or session request.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Grantable",
+            "type": "array"
           },
           "id": {
             "description": "Stable identity. Equal to `name` today; it exists separately so a worker can be renamed without breaking clients that key off it.",
@@ -142,6 +158,304 @@
           "count"
         ],
         "title": "AgentsResponse",
+        "type": "object"
+      },
+      "AssignmentInfo": {
+        "description": "One standing grant: applied to every matching run, before the caller asks.",
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "lead",
+              "team",
+              "agent"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Team name for 'team', agent name for 'agent', null for 'lead'.",
+            "title": "Subject"
+          }
+        },
+        "required": [
+          "scope",
+          "subject",
+          "capability"
+        ],
+        "title": "AssignmentInfo",
+        "type": "object"
+      },
+      "AssignmentWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "lead",
+              "team",
+              "agent"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          }
+        },
+        "required": [
+          "scope",
+          "capability"
+        ],
+        "title": "AssignmentWrite",
+        "type": "object"
+      },
+      "AssignmentsResponse": {
+        "properties": {
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/AssignmentInfo"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assignments",
+          "count"
+        ],
+        "title": "AssignmentsResponse",
+        "type": "object"
+      },
+      "CapabilitiesResponse": {
+        "description": "Body of `GET /v1/capabilities`. An envelope, for the same reason `AgentsResponse`\nis one: a bare array cannot grow a field.",
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityInfo"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "source": {
+            "description": "'database' or 'seed'. Worth publishing: the two are edited very differently -- one through this API, the other by shipping a commit.",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capabilities",
+          "count",
+          "source"
+        ],
+        "title": "CapabilitiesResponse",
+        "type": "object"
+      },
+      "CapabilityHistoryResponse": {
+        "description": "Every revision of one pack, oldest first.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityInfo"
+            },
+            "title": "Revisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "revisions"
+        ],
+        "title": "CapabilityHistoryResponse",
+        "type": "object"
+      },
+      "CapabilityInfo": {
+        "description": "One pack, at a given revision.",
+        "properties": {
+          "description": {
+            "description": "What the pack is for. This is what a human reads when approving it.",
+            "title": "Description",
+            "type": "string"
+          },
+          "mcp_servers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mcp Servers",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prompt_note": {
+            "description": "Appended to the grantee's prompt. A tool a worker was never told it has is a tool it will not use.",
+            "title": "Prompt Note",
+            "type": "string"
+          },
+          "revision": {
+            "description": "1-based. 0 means this came from the in-code seed, not the database.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Database id of this exact content. Pinned on every run that held the pack, which is what keeps a completed run explicable after a later edit.",
+            "title": "Revision Id"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skills",
+            "type": "array"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "tools",
+          "skills",
+          "mcp_servers",
+          "prompt_note",
+          "revision"
+        ],
+        "title": "CapabilityInfo",
+        "type": "object"
+      },
+      "CapabilityWrite": {
+        "additionalProperties": false,
+        "description": "Body of `POST`/`PUT /v1/capabilities`.\n\nNo `revision` field: revisions are minted, never chosen. A caller that could pick one\ncould overwrite history, which is the property this whole table exists to prevent.",
+        "properties": {
+          "description": {
+            "description": "Mandatory. A capability nobody can explain is one nobody should approve.",
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "mcp_servers": {
+            "description": "Must already be loaded by this server. A pack may scope a worker to an existing MCP server; it may not introduce one.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Mcp Servers",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "prompt_note": {
+            "default": "",
+            "title": "Prompt Note",
+            "type": "string"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skills",
+            "type": "array"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "CapabilityWrite",
+        "type": "object"
+      },
+      "GrantsModel": {
+        "additionalProperties": false,
+        "description": "Capability packs to attach to this run, by scope.\n\nNames only. A free-form tool list here would be simpler and strictly worse: it moves\nthe security decision from a reviewed registry to the call site, it cannot carry the\nprompt note that makes a granted tool actually get used, and it makes\n`GET /v1/capabilities` meaningless.",
+        "properties": {
+          "agents": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Packs for one named agent. Unlike `team`, a ceiling violation here is a 422 -- you named the agent, so a silent drop would hide your mistake.",
+            "title": "Agents",
+            "type": "object"
+          },
+          "lead": {
+            "description": "Packs for the main thread -- the manager in team mode, else the agent.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Lead",
+            "type": "array"
+          },
+          "team": {
+            "description": "Packs for every worker of the selected team. A worker whose ceiling forbids a pack is skipped rather than failing the run; see `skipped_grants` on the response.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Team",
+            "type": "array"
+          }
+        },
+        "title": "GrantsModel",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -304,10 +618,46 @@
         "title": "Readiness",
         "type": "object"
       },
+      "ReloadResponse": {
+        "description": "Result of dropping the registry cache.",
+        "properties": {
+          "capabilities": {
+            "title": "Capabilities",
+            "type": "integer"
+          },
+          "detail": {
+            "description": "Cross-worker note: this reloads THIS process only. Other workers pick the change up within AGENCY_CAPABILITY_CACHE_TTL_S.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "reloaded": {
+            "default": true,
+            "title": "Reloaded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "capabilities",
+          "detail"
+        ],
+        "title": "ReloadResponse",
+        "type": "object"
+      },
       "RunRequest": {
         "additionalProperties": false,
         "description": "Body of `POST /v1/runs`.",
         "properties": {
+          "grants": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrantsModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Capability packs to attach. Omit for the agent's default powers. See GET /v1/capabilities for what exists and which agents may hold each pack."
+          },
           "profile": {
             "anyOf": [
               {
@@ -365,6 +715,17 @@
             "title": "Duration Ms",
             "type": "integer"
           },
+          "grants": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Capability packs this run actually held, keyed by scope ('lead', 'team:<agent>', 'agent:<agent>'). Echoed rather than reflected back from the request: a team-scoped pack a worker's ceiling refused does not appear here.",
+            "title": "Grants",
+            "type": "object"
+          },
           "is_error": {
             "title": "Is Error",
             "type": "boolean"
@@ -395,6 +756,14 @@
           "run_id": {
             "title": "Run Id",
             "type": "string"
+          },
+          "skipped_grants": {
+            "description": "Team-scoped packs a worker's ceiling declined, with the reason. Empty on almost every run; when it is not, this is the difference between what you asked for and what ran.",
+            "items": {
+              "$ref": "#/components/schemas/SkippedGrantInfo"
+            },
+            "title": "Skipped Grants",
+            "type": "array"
           },
           "summary": {
             "title": "Summary",
@@ -442,10 +811,46 @@
         "title": "RunResponse",
         "type": "object"
       },
+      "SeedResponse": {
+        "properties": {
+          "unchanged": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unchanged",
+            "type": "array"
+          },
+          "written": {
+            "description": "Packs that produced a new revision. Empty is normal.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Written",
+            "type": "array"
+          }
+        },
+        "required": [
+          "written",
+          "unchanged"
+        ],
+        "title": "SeedResponse",
+        "type": "object"
+      },
       "SessionCreateRequest": {
         "additionalProperties": false,
         "description": "Body of `POST /v1/sessions`. Every field is optional: the server's own profile\nand a solo (non-team) agent are the defaults, same as `POST /v1/runs`.",
         "properties": {
+          "grants": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrantsModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Capability packs to attach. Omit for the agent's default powers. See GET /v1/capabilities for what exists and which agents may hold each pack."
+          },
           "profile": {
             "anyOf": [
               {
@@ -578,6 +983,38 @@
         "title": "SessionsResponse",
         "type": "object"
       },
+      "SkippedGrantInfo": {
+        "description": "A team-scoped pack one worker did not receive, and why.",
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "barred_tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Barred Tools",
+            "type": "array"
+          },
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "capability",
+          "barred_tools",
+          "reason"
+        ],
+        "title": "SkippedGrantInfo",
+        "type": "object"
+      },
       "ToolEvent": {
         "description": "One entry of the run's tool trace.",
         "properties": {
@@ -657,7 +1094,7 @@
     "securitySchemes": {
       "APIKeyHeader": {
         "in": "header",
-        "name": "X-API-Key",
+        "name": "X-Admin-Key",
         "type": "apiKey"
       },
       "HTTPBearer": {
@@ -827,6 +1264,490 @@
         "summary": "Retrieve one agent by id",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "operationId": "list_capabilities_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List capability packs",
+        "tags": [
+          "capabilities"
+        ]
+      }
+    },
+    "/v1/capabilities/reload": {
+      "post": {
+        "operationId": "reload_v1_capabilities_reload_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReloadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Drop this process's registry cache",
+        "tags": [
+          "capabilities"
+        ]
+      }
+    },
+    "/v1/capabilities/seed": {
+      "post": {
+        "operationId": "seed_v1_capabilities_seed_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Write the in-code seed registry into the database",
+        "tags": [
+          "capabilities"
+        ]
+      }
+    },
+    "/v1/capabilities/{name}": {
+      "delete": {
+        "description": "Archive, never delete. `run_grant` rows reference a pack forever, and a run whose\ncapability vanished is a run nobody can explain.",
+        "operationId": "delete_capability_v1_capabilities__name__delete",
+        "parameters": [
+          {
+            "description": "The pack's name.",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The pack's name.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive a pack",
+        "tags": [
+          "capabilities"
+        ]
+      },
+      "put": {
+        "description": "Idempotent on content: identical content does not mint a revision.\n\nPUT rather than PATCH because a revision is whole -- there is no partial edit of an\nimmutable row, and offering one would suggest the previous content is still in play.",
+        "operationId": "put_capability_v1_capabilities__name__put",
+        "parameters": [
+          {
+            "description": "The pack's name.",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The pack's name.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapabilityWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Admin API disabled"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No database configured"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The pack could never be honoured"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create a pack, or add a revision to one",
+        "tags": [
+          "capabilities"
+        ]
+      }
+    },
+    "/v1/capabilities/{name}/history": {
+      "get": {
+        "description": "The audit trail for one pack.\n\nThis is what replaces `git log` once the database is authoritative: every edit is a\nnew immutable revision, and a completed run names the revision id it held.",
+        "operationId": "capability_history_v1_capabilities__name__history_get",
+        "parameters": [
+          {
+            "description": "The pack's name.",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "The pack's name.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No such capability"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Every revision of one pack",
+        "tags": [
+          "capabilities"
+        ]
+      }
+    },
+    "/v1/grants": {
+      "delete": {
+        "description": "Disables rather than deletes, so the history of what was once granted survives.",
+        "operationId": "remove_grant_v1_grants_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove a standing grant",
+        "tags": [
+          "capabilities"
+        ]
+      },
+      "get": {
+        "description": "Assignments applied to every matching run before the caller asks for anything.",
+        "operationId": "list_grants_v1_grants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Standing grants",
+        "tags": [
+          "capabilities"
+        ]
+      },
+      "post": {
+        "operationId": "add_grant_v1_grants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add a standing grant",
+        "tags": [
+          "capabilities"
         ]
       }
     },
@@ -1346,6 +2267,10 @@
     {
       "description": "Agent discovery: which subagents this server can invoke.",
       "name": "agents"
+    },
+    {
+      "description": "Capability packs and standing grants. Reading needs the ordinary API key; changing what agents may do needs a separate admin key, and is disabled unless one is configured.",
+      "name": "capabilities"
     },
     {
       "description": "Multi-turn conversations. A session holds a live agent context open across requests; close it when you are done, or it is reaped when idle.",

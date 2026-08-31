@@ -1,0 +1,391 @@
+<mxfile host="Claude" agent="ai_agency_app architecture generator" type="device">
+  <diagram id="d206" name="1 · Module map">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1250" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="band1" value="app/  —  expo-router: every file here is a route" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="40" width="1660" height="190" as="geometry"/></mxCell>
+        <mxCell id="band2" value="src/screens/  —  full screens, so a test can render one without a router" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="250" width="1660" height="110" as="geometry"/></mxCell>
+        <mxCell id="band3" value="src/components/  +  src/theme.ts" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="380" width="1660" height="110" as="geometry"/></mxCell>
+        <mxCell id="band4" value="src/hooks/  —  one hook per concern; everything server-shaped goes through React Query" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="510" width="1660" height="110" as="geometry"/></mxCell>
+        <mxCell id="band5" value="src/query/  —  React Query wiring" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="640" width="1660" height="110" as="geometry"/></mxCell>
+        <mxCell id="band6" value="src/api/  —  endpoint modules: a path, a zod schema, one call" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="770" width="1660" height="170" as="geometry"/></mxCell>
+        <mxCell id="band7" value="src/api/  —  transport: the only code in the app that knows fetch exists" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="960" width="1660" height="120" as="geometry"/></mxCell>
+        <mxCell id="band8" value="the server" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="1100" width="1660" height="110" as="geometry"/></mxCell>
+        <mxCell id="b9" value="app/_layout.tsx
+Stack · SafeAreaProvider · QueryProvider" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="40" y="75" width="300" height="55" as="geometry"/></mxCell>
+        <mxCell id="b10" value="app/(tabs)/_layout.tsx
+bottom tab bar" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="370" y="75" width="260" height="55" as="geometry"/></mxCell>
+        <mxCell id="b11" value="(tabs)/index.tsx
+Agents  (default route)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="40" y="155" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b12" value="(tabs)/chat.tsx
+thin wrapper" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="280" y="155" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b13" value="(tabs)/control-plane.tsx
+screen lives here" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="520" y="155" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b14" value="agent/[id].tsx
+thin wrapper" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="760" y="155" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b15" value="+not-found.tsx" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="1000" y="155" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="t16" value="Route files are thin wrappers and are excluded from coverage, alongside _layout.tsx.
+control-plane.tsx is the exception — it predates the src/screens convention and is tested
+by importing the route module directly." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="1250" y="150" width="400" height="70" as="geometry"/></mxCell>
+        <mxCell id="b17" value="Conversation.tsx
+session or one-shot run" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="280" y="285" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b18" value="AgentDetail.tsx
+exports STATUS_TONE" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="760" y="285" width="220" height="60" as="geometry"/></mxCell>
+        <mxCell id="b19" value="Screen" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="40" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b20" value="StatusPill" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="255" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b21" value="MessageBubble" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="470" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b22" value="MessageComposer" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="685" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b23" value="ProbeCard" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="900" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b24" value="RequestLogRow" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="1115" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b25" value="theme.ts
+colors · spacing · radii" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="1330" y="415" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b26" value="useAgents / useAgent
+polls every 5 s" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="40" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b27" value="useTeams
+shares qk.agents() — free" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="300" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b28" value="useConversation
+mutations + transcript state" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="560" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b29" value="useSessions / useCloseSession
+polls every 10 s" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="820" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b30" value="useSystemStatus
+useQueries over PROBES" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="1080" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b31" value="useRequestLog
+useSyncExternalStore" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="1340" y="545" width="245" height="60" as="geometry"/></mxCell>
+        <mxCell id="b32" value="QueryProvider.tsx
+one client for the app’s life;
+AppState → focusManager on native" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="40" y="672" width="300" height="65" as="geometry"/></mxCell>
+        <mxCell id="b33" value="query/client.ts
+staleTime 5 s · gcTime 5 min
+retry defers to ApiError.isRetryable" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="360" y="672" width="320" height="65" as="geometry"/></mxCell>
+        <mxCell id="b34" value="query/keys.ts — qk
+probes · agents · sessions" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="700" y="672" width="280" height="65" as="geometry"/></mxCell>
+        <mxCell id="t35" value="There is no cache key for the conversation. The server stores no transcript, so it is
+component state, not server data — a query key would imply it could be refetched." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="1000" y="680" width="600" height="50" as="geometry"/></mxCell>
+        <mxCell id="b36" value="agents.ts
+GET /v1/agents · /v1/agents/{id}" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="40" y="805" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="b37" value="runs.ts
+POST /v1/runs" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="310" y="805" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="b38" value="sessions.ts
+/v1/sessions  GET POST
+{id} GET DELETE · {id}/messages POST" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="580" y="805" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="b39" value="system.ts
+PROBES: /healthz · /readyz" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="850" y="805" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="b40" value="teams.ts
+pure — derives teams from the roster
+(the server has no teams endpoint)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="1120" y="805" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="b41" value="schemas.ts
+zod, strict everywhere except ProbeBodySchema" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="40" y="875" width="350" height="50" as="geometry"/></mxCell>
+        <mxCell id="b42" value="errors.ts
+ApiError(kind) · describeApiError()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="410" y="875" width="350" height="50" as="geometry"/></mxCell>
+        <mxCell id="b43" value="contract.ts
+OpenAPI spec vs. these schemas" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="780" y="875" width="350" height="50" as="geometry"/></mxCell>
+        <mxCell id="b44" value="fixtures/agents.ts
+TEMPORARY · EXPO_PUBLIC_MOCK_AGENTS=1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffffff;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="1"><mxGeometry x="1150" y="875" width="350" height="50" as="geometry"/></mxCell>
+        <mxCell id="b45" value="client.ts
+apiClient singleton
+setAuthTokenProvider()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="40" y="995" width="330" height="70" as="geometry"/></mxCell>
+        <mxCell id="b46" value="http.ts — HttpClient
+timeout · bounded retries · abort · auth header · zod parse · logging" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="400" y="995" width="430" height="70" as="geometry"/></mxCell>
+        <mxCell id="b47" value="log.ts — RequestLog
+50-entry in-memory ring buffer" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="860" y="995" width="300" height="70" as="geometry"/></mxCell>
+        <mxCell id="b48" value="config.ts
+base URL: env → Metro LAN IP → 10.0.2.2 / localhost" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1190" y="995" width="330" height="70" as="geometry"/></mxCell>
+        <mxCell id="b49" value="agency HTTP API (FastAPI)
+http://localhost:8000" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d0cee2;strokeColor=#56517e;" vertex="1" parent="1"><mxGeometry x="400" y="1125" width="430" height="60" as="geometry"/></mxCell>
+        <mxCell id="b50" value="tools/mock-agent-api.mjs
+zero-dependency stub, /__control__ knobs" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d0cee2;strokeColor=#56517e;" vertex="1" parent="1"><mxGeometry x="860" y="1125" width="430" height="60" as="geometry"/></mxCell>
+        <mxCell id="e51" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b9" target="b10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e52" value="mounts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b9" target="b32"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e53" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b12" target="b17"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e54" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b14" target="b18"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e55" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b11" target="b26"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e56" value="teamsFromRoster()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b11" target="b40"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e57" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b17" target="b28"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e58" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b17" target="b27"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e59" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b17" target="b21"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e60" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b17" target="b22"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e61" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b18" target="b26"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e62" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b13" target="b30"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e63" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b13" target="b29"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e64" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b13" target="b31"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e65" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b13" target="b23"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e66" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b13" target="b24"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b26" target="b34"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e68" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b29" target="b34"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e69" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b30" target="b34"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e70" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b32" target="b33"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e71" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b26" target="b36"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e72" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b28" target="b38"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e73" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b28" target="b37"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e74" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b29" target="b38"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e75" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b30" target="b39"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e76" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b27" target="b40"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e77" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b36" target="b45"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e78" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b37" target="b45"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e79" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b38" target="b45"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e80" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b39" target="b45"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e81" value="parses with" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b36" target="b41"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e82" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b45" target="b46"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e83" value="API_BASE_URL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b48" target="b45"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e84" value="onLog" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b46" target="b47"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e85" value="subscribe / getSnapshot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;strokeColor=#9673a6;" edge="1" parent="1" source="b47" target="b31"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e86" value="throws ApiError" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b46" target="b42"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e87" value="fetch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b46" target="b49"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e88" value="swapped in for e2e" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;endArrow=none;" edge="1" parent="1" source="b49" target="b50"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e89" value="if MOCK_AGENTS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b36" target="b44"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d207" name="2 · One turn, end to end">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1260" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="band90" value="Conversation screen" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f2f7fb;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="40" width="300" height="1180" as="geometry"/></mxCell>
+        <mxCell id="band91" value="useConversation  (React Query mutation)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f7f3fb;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="340" y="40" width="320" height="1180" as="geometry"/></mxCell>
+        <mxCell id="band92" value="src/api/sessions.ts · runs.ts" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fdf3f3;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="680" y="40" width="320" height="1180" as="geometry"/></mxCell>
+        <mxCell id="band93" value="src/api/http.ts — HttpClient" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f7f7f7;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="1020" y="40" width="340" height="1180" as="geometry"/></mxCell>
+        <mxCell id="band94" value="agency API" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f4f3f8;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="1380" y="40" width="300" height="1180" as="geometry"/></mxCell>
+        <mxCell id="b95" value="1 · user types, submit()
+send.mutate(draft), composer cleared" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="90" width="270" height="55" as="geometry"/></mxCell>
+        <mxCell id="b96" value="2 · onMutate
+userEntry(prompt) appended — optimistic bubble" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="90" width="290" height="55" as="geometry"/></mxCell>
+        <mxCell id="b97" value="3 · mode === &quot;run&quot;?
+createRun({prompt, profile, team})" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="165" width="290" height="55" as="geometry"/></mxCell>
+        <mxCell id="b98" value="POST /v1/runs
+timeout 600 000 ms · retries 0" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="695" y="165" width="290" height="55" as="geometry"/></mxCell>
+        <mxCell id="b99" value="4 · team or profile changed since the session opened?
+closeSession(stale) + systemEntry(&quot;Switched to …&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="240" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b100" value="5 · no live session?
+openSession({profile, team})" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="325" width="290" height="55" as="geometry"/></mxCell>
+        <mxCell id="b101" value="POST /v1/sessions → SessionInfo
+profile and team are fixed here, forever
+(sending them on a turn is 422)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="695" y="325" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b102" value="6 · hold it in a ref AND in state
+— a stale closure inside the async
+mutation would open a second session
+invalidate qk.sessions()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="400" width="290" height="80" as="geometry"/></mxCell>
+        <mxCell id="b103" value="7 · sendSessionMessage(id, prompt)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="500" width="290" height="45" as="geometry"/></mxCell>
+        <mxCell id="b104" value="POST /v1/sessions/{id}/messages
+→ { run, turn }   one turn at a time: a second is 409" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="695" y="500" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b105" value="buildUrl(baseUrl, path)
+bearer header from the token provider" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="165" width="310" height="55" as="geometry"/></mxCell>
+        <mxCell id="b106" value="AbortController + timeout (8 s default)
+the caller’s signal is forwarded in" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="235" width="310" height="55" as="geometry"/></mxCell>
+        <mxCell id="b107" value="fetch → status check
+body kept, truncated, for the log" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="305" width="310" height="55" as="geometry"/></mxCell>
+        <mxCell id="b108" value="JSON parse → zod parse
+ApiError kind: parse | validation" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="375" width="310" height="55" as="geometry"/></mxCell>
+        <mxCell id="b109" value="log.push({method, url, attempt,
+status, latencyMs, ok}) → RequestLog" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="445" width="310" height="55" as="geometry"/></mxCell>
+        <mxCell id="b110" value="retry?  idempotent methods only
+(GET HEAD PUT DELETE) · 300 / 600 / 1200 ms
+never a 4xx · a POST is never replayed —
+a retried run is a second run" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="1035" y="515" width="310" height="80" as="geometry"/></mxCell>
+        <mxCell id="b111" value="FastAPI on :8000
+(tools/mock-agent-api.mjs during e2e)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d0cee2;strokeColor=#56517e;" vertex="1" parent="1"><mxGeometry x="1395" y="305" width="270" height="60" as="geometry"/></mxCell>
+        <mxCell id="b112" value="8 · onSuccess
+settle(userEntry) + agentEntry(run, turn)
+invalidate qk.sessions()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="355" y="660" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b113" value="MessageBubble renders the reply:
+cost · duration · tools used · delegation" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="660" width="270" height="65" as="geometry"/></mxCell>
+        <mxCell id="b114" value="is_error: true arrives on a 200.
+Read the flag — the status line will not tell you.
+A turn’s result is the same RunResponse a one-shot
+run returns, nested under &quot;run&quot; — one renderer for both." style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffffff;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="1"><mxGeometry x="355" y="745" width="630" height="65" as="geometry"/></mxCell>
+        <mxCell id="b115" value="9 · onError
+drop(userEntry) — nothing typed is left
+looking delivered" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="355" y="835" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b116" value="sessionIsGone(status)
+404 · 502 · 504 → the handle is dead;
+the server closed it on the way out" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="695" y="835" width="290" height="65" as="geometry"/></mxCell>
+        <mxCell id="b117" value="10 · holdSession(null) + systemEntry
+&quot;the next message opens a new one&quot;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="920" width="290" height="55" as="geometry"/></mxCell>
+        <mxCell id="b118" value="the screen puts the draft back in the composer
+describeApiError(): the RFC 9457 detail wins, else
+409 busy · 503 no free slot · 504 cut off · 502 loop failed" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="835" width="270" height="90" as="geometry"/></mxCell>
+        <mxCell id="b119" value="11 · pagehide / visibilitychange (web only)
+closeSession() called directly, with keepalive —
+nothing is left to observe a mutation" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="355" y="1010" width="290" height="75" as="geometry"/></mxCell>
+        <mxCell id="b120" value="DELETE /v1/sessions/{id} · retries: 0
+a replayed lost 204 would report a failure
+for work that succeeded" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="695" y="1010" width="290" height="75" as="geometry"/></mxCell>
+        <mxCell id="e121" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b95" target="b96"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e122" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b96" target="b97"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e123" value="one-shot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b97" target="b98"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e124" value="session mode" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b97" target="b99"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e125" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b99" target="b100"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e126" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b100" target="b101"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e127" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b101" target="b102"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e128" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b102" target="b103"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e129" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b103" target="b104"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e130" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b98" target="b105"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e131" value="every call goes through here" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b101" target="b105"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e132" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b104" target="b105"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e133" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b105" target="b106"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e134" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b106" target="b107"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e135" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b107" target="b111"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e136" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b107" target="b108"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e137" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b108" target="b109"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e138" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b109" target="b110"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e139" value="retry" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="b110" target="b106"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e140" value="resolves" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;strokeColor=#82b366;" edge="1" parent="1" source="b108" target="b112"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e141" value="rejects with ApiError" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;strokeColor=#b85450;" edge="1" parent="1" source="b110" target="b115"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e142" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b112" target="b113"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e143" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b115" target="b116"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e144" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b116" target="b117"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e145" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b115" target="b118"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e146" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b119" target="b120"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d208" name="3 · Screens and routes">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1550" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="t147" value="Three tabs, registered in that order in app/(tabs)/_layout.tsx. Agents is the landing route." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=13;fontStyle=1;fontColor=#555555;" vertex="1" parent="1"><mxGeometry x="60" y="40" width="900" height="24" as="geometry"/></mxCell>
+        <mxCell id="b148" value="app/_layout.tsx
+Stack · SafeAreaProvider · QueryProvider · StatusBar" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="560" y="100" width="380" height="60" as="geometry"/></mxCell>
+        <mxCell id="b149" value="app/(tabs)/_layout.tsx — bottom tab bar" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="560" y="200" width="380" height="45" as="geometry"/></mxCell>
+        <mxCell id="b150" value="Agents   &quot;/&quot;
+app/(tabs)/index.tsx" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="100" y="320" width="320" height="55" as="geometry"/></mxCell>
+        <mxCell id="b151" value="Conversation   &quot;/chat&quot;
+app/(tabs)/chat.tsx → src/screens/Conversation.tsx" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="460" y="320" width="380" height="55" as="geometry"/></mxCell>
+        <mxCell id="b152" value="Control plane   &quot;/control-plane&quot;
+app/(tabs)/control-plane.tsx" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="880" y="320" width="340" height="55" as="geometry"/></mxCell>
+        <mxCell id="b153" value="agent/[id].tsx → src/screens/AgentDetail.tsx
+pushed, not a tab" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="100" y="620" width="320" height="55" as="geometry"/></mxCell>
+        <mxCell id="b154" value="+not-found.tsx" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="1270" y="320" width="200" height="55" as="geometry"/></mxCell>
+        <mxCell id="b155" value="The subagent roster, read-only — because the API is.
+Row per agent: status pill, model, tools, turn cap,
+and whether it loads on every run or only a team run.
+Grouped by the teams teamsFromRoster() derives.
+
+useAgents({ pollIntervalMs: 5 000 })" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="100" y="415" width="320" height="155" as="geometry"/></mxCell>
+        <mxCell id="b156" value="Sends work. Mode switch: multi-turn session, or
+one-shot run. Team and profile pickers — disabled
+once a session exists, because the server fixes
+both at open time.
+Each reply carries its cost, tool trace and delegation.
+
+useConversation({ mode, profile, team }) · useTeams()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="460" y="415" width="380" height="155" as="geometry"/></mxCell>
+        <mxCell id="b157" value="/healthz and /readyz, re-run every 10 s while on screen.
+Free run and session slots, parsed with
+ReadinessSchema.safeParse at render — the strip is
+omitted rather than crashing if the shape moved.
+Every open session, with a close button.
+The last 50 requests the app made.
+
+useSystemStatus() · useSessions() · useCloseSession()
+useRequestLog()" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="880" y="415" width="340" height="175" as="geometry"/></mxCell>
+        <mxCell id="b158" value="One roster entry in full. useAgent(id) seeds from the
+list cache, so the push is instant.
+Exports STATUS_TONE, which the roster reuses." style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="100" y="690" width="320" height="90" as="geometry"/></mxCell>
+        <mxCell id="e159" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b148" target="b149"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e160" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b149" target="b150"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e161" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b149" target="b151"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e162" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b149" target="b152"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e163" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b150" target="b155"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e164" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b151" target="b156"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e165" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b152" target="b157"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e166" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b153" target="b158"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e167" value="tap a row → router.push(&quot;/agent/{id}&quot;)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b155" target="b153"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e168" value="unmatched route" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b148" target="b154"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="t169" value="Convention: full screens live in src/screens/ so a test can render them without a router;
+route files are thin wrappers, excluded from coverage. jest.setup.ts mocks expo-router globally.
+control-plane.tsx never got extracted — it predates the convention — so its test imports the route module." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="460" y="620" width="760" height="80" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d209" name="4 · Tests, tooling, contract">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="920" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="band170" value="npm test   —   jest-expo + React Native Testing Library, no network" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f7f3fb;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="40" width="800" height="420" as="geometry"/></mxCell>
+        <mxCell id="band171" value="npm run e2e   —   Cypress against the real web build" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f2f7fb;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="850" y="40" width="830" height="420" as="geometry"/></mxCell>
+        <mxCell id="band172" value="the contract check   —   neither side generates the other" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fdf3f3;strokeColor=#d9d9d9;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontSize=12;fontStyle=1;fontColor=#8a8a8a;" vertex="1" parent="1"><mxGeometry x="20" y="490" width="1660" height="380" as="geometry"/></mxCell>
+        <mxCell id="b173" value="src/**/__tests__  ·  __tests__/*-screen.test.tsx
+http · sessions · transcript · hooks · screens" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="45" y="85" width="350" height="60" as="geometry"/></mxCell>
+        <mxCell id="b174" value="src/test-utils/
+http.ts fetch doubles · fixtures.ts wire-shaped factories
+render.tsx (wraps in a QueryClientProvider)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="45" y="165" width="350" height="70" as="geometry"/></mxCell>
+        <mxCell id="b175" value="jest.setup.ts
+mocks expo-router globally, so screens that
+navigate render without a navigation container" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="45" y="255" width="350" height="65" as="geometry"/></mxCell>
+        <mxCell id="b176" value="coverage thresholds
+global 85 / 80 / 80 / 85, plus a higher floor on
+http.ts · system.ts · sessions.ts · chat/transcript.ts" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffffff;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="1"><mxGeometry x="45" y="340" width="350" height="70" as="geometry"/></mxCell>
+        <mxCell id="t177" value="Gotchas: RNTL v13 has no toHaveAccessibilityState — use
+toBeDisabled/toBeEnabled. toHaveTextContent is an exact match;
+pass a regex for substrings. In a Linux container, --forceExit.
+_to_delete/ is ignored by jest and tsconfig alike." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="420" y="90" width="380" height="90" as="geometry"/></mxCell>
+        <mxCell id="t178" value="212 tests as of the 2026-08-21 rebuild.
+
+npx jest over the device bridge exceeds the
+45 s cap and returns nothing — copy the repo
+into a container and run it there instead." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="420" y="250" width="380" height="110" as="geometry"/></mxCell>
+        <mxCell id="b179" value="expo start --web  :8081
+react-native-web — testID becomes data-testid,
+so the same selectors work in jest and here" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="875" y="85" width="360" height="70" as="geometry"/></mxCell>
+        <mxCell id="b180" value="cypress/e2e/
+agents · conversation · control-plane" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="875" y="175" width="360" height="55" as="geometry"/></mxCell>
+        <mxCell id="b181" value="tools/mock-agent-api.mjs  :8000
+serves exactly the spec’d surface,
+RFC 9457 problem bodies" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d0cee2;strokeColor=#56517e;" vertex="1" parent="1"><mxGeometry x="875" y="250" width="360" height="65" as="geometry"/></mxCell>
+        <mxCell id="b182" value="POST /__control__
+readyz: fail · runs: busy | fail | error | timeout
+sessions: busy · replyDelayMs · latencyMs · reset
+→ the degraded, offline and slow paths, on demand" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffffff;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="1"><mxGeometry x="875" y="330" width="360" height="80" as="geometry"/></mxCell>
+        <mxCell id="t183" value="start-server-and-test boots the mock, waits for
+/healthz, boots Expo web, waits for :8081,
+then runs Cypress. No FastAPI process required.
+
+npm run verify = typecheck + coverage + e2e
+— what CI should run." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="1260" y="90" width="400" height="130" as="geometry"/></mxCell>
+        <mxCell id="b184" value="the FastAPI repo
+hand-written Pydantic models" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d0cee2;strokeColor=#56517e;" vertex="1" parent="1"><mxGeometry x="60" y="545" width="300" height="55" as="geometry"/></mxCell>
+        <mxCell id="b185" value="contracts/python/export_openapi.py --check
+fails the build when a model changes without
+the spec change being committed" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="60" y="630" width="300" height="70" as="geometry"/></mxCell>
+        <mxCell id="b186" value="contracts/openapi.json
+the pinned spec — keys sorted, one trailing newline,
+so a no-op refresh is an empty diff" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="430" y="630" width="360" height="70" as="geometry"/></mxCell>
+        <mxCell id="b187" value="tools/pull-openapi.mjs
+npm run contract:pull        refresh it
+npm run contract:pull -- --check   is it stale?" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1"><mxGeometry x="430" y="545" width="360" height="60" as="geometry"/></mxCell>
+        <mxCell id="b188" value="src/api/__tests__/contract.test.ts
+CONTRACT: every response the app parses, pointed
+at its leaf schema. Reads the pinned file — no network,
+no running API." style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="860" y="630" width="380" height="80" as="geometry"/></mxCell>
+        <mxCell id="b189" value="src/api/contract.ts — checkContract()
+Compares through JSON Schema (z.toJSONSchema).
+Asymmetric on purpose: the question is never
+&quot;are these identical&quot; but &quot;can the server send
+something this app would refuse?&quot;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="860" y="730" width="380" height="95" as="geometry"/></mxCell>
+        <mxCell id="b190" value="error — fails the build
+server may send null, client rejects it ·
+required field the server may omit ·
+type mismatch · client stricter minLength/format ·
+server enum value the client rejects" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="1290" y="630" width="360" height="100" as="geometry"/></mxCell>
+        <mxCell id="b191" value="info — reported, tolerated
+server sends a field the client ignores ·
+client handles a value the server never sends ·
+unions, compared shallowly" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="1290" y="745" width="360" height="80" as="geometry"/></mxCell>
+        <mxCell id="t192" value="Why not codegen? Either side could generate the other — and then one side stops being hand-written, and the comments in schemas.ts
+explaining why a field is loose are exactly what a generator throws away. So both stay hand-written and this fails the build when they disagree." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=10;fontColor=#777777;" vertex="1" parent="1"><mxGeometry x="60" y="730" width="760" height="60" as="geometry"/></mxCell>
+        <mxCell id="e193" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b184" target="b185"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e194" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b185" target="b186"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e195" value="pulls /openapi.json" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b187" target="b186"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e196" value="GET" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="b184" target="b187"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e197" value="read at test time" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b186" target="b188"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e198" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b188" target="b189"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e199" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b189" target="b190"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e200" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b189" target="b191"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e201" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b181" target="b182"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e202" value="drives" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b180" target="b179"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e203" value="EXPO_PUBLIC_API_URL → :8000" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="b179" target="b181"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e204" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b174" target="b173"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e205" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;orthogonalLoop=1;endArrow=block;endFill=1;strokeColor=#8c8c8c;fontSize=10;fontColor=#555555;labelBackgroundColor=#ffffff;endArrow=none;dashed=1;" edge="1" parent="1" source="b175" target="b173"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
