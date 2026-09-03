@@ -157,12 +157,19 @@ export function useConversation({
       const response = await sendSessionMessage(active.id, prompt);
       // The turn count and idle clock moved; the server would tell us the same
       // thing for the price of a second round trip per message.
-      holdSession({
-        ...active,
-        status: 'idle',
-        turns: response.turn,
-        last_active_at: now().toISOString(),
-      });
+      //
+      // Only if the handle is still the one we sent on, though. A turn can be
+      // in flight while the user presses Close — the button is on screen from
+      // the moment the session opens — and writing the reply's session back
+      // here would resurrect a subprocess that has already been handed back.
+      if (sessionRef.current?.id === active.id) {
+        holdSession({
+          ...active,
+          status: 'idle',
+          turns: response.turn,
+          last_active_at: now().toISOString(),
+        });
+      }
       return { run: response.run, turn: response.turn };
     },
     onSuccess: (result, _prompt, context) => {

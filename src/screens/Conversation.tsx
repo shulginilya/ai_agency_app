@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,19 +13,22 @@ import {
 } from 'react-native';
 import { describeApiError } from '@/api/errors';
 import { promptTooLong } from '@/api/runs';
-import { MAX_PROMPT_LENGTH, RUN_PROFILES, type RunProfile } from '@/api/schemas';
+import { MAX_PROMPT_LENGTH, type RunProfile } from '@/api/schemas';
 import { MessageBubble } from '@/components/MessageBubble';
 import { MessageComposer } from '@/components/MessageComposer';
+import { ProfileSheet } from '@/components/ProfileSheet';
 import { Screen } from '@/components/Screen';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { StatusPill } from '@/components/StatusPill';
+import { TeamSheet } from '@/components/TeamSheet';
 import { useConversation, type ConversationMode } from '@/hooks/useConversation';
 import { useTeams } from '@/hooks/useTeams';
 import { radius, spacing, useTheme } from '@/theme';
 
-const MODES: { mode: ConversationMode; label: string; hint: string }[] = [
-  { mode: 'session', label: 'Session', hint: 'Multi-turn. The agent remembers, and holds a subprocess open.' },
-  { mode: 'run', label: 'One-shot', hint: 'One prompt, one answer, no memory and nothing to clean up.' },
-];
+const MODE_HINT: Record<ConversationMode, string> = {
+  session: 'Multi-turn. The agent remembers, and holds a subprocess open until you close it.',
+  run: 'One prompt, one answer, no memory and nothing to clean up.',
+};
 
 /**
  * The conversation screen.
@@ -38,26 +42,48 @@ const MODES: { mode: ConversationMode; label: string; hint: string }[] = [
  * The team names come from the roster, not from a teams endpoint — there is
  * none. See `src/api/teams.ts` for what that costs.
  *
+ * ## The header, since 2026-09-03
+ *
+ * Three stacked rows of chips used to sit above the transcript: mode, team,
+ * profile, one chip each, growing a row per team the server adds. They read as
+ * one undifferentiated grid of toggles even though the three groups behave
+ * differently, and on a phone they ate the thread.
+ *
+ * Now: one control bar. Mode is a segmented control, because it is the one
+ * choice that is genuinely N-of-N-always-one. Team and profile are buttons
+ * that open sheets, because both have a "none" state and both have more to say
+ * than fits on a chip — the team button carries its worker count and how many
+ * are running, and the sheet behind it lists the actual workers. Once a session
+ * is open the bar collapses to a single summary line, since everything on it is
+ * fixed anyway and the transcript wants the room.
+ *
  * Profile and team are baked into the options a session connected with, and
  * sending either on a turn is a 422. Profile therefore locks once a session is
  * open. Team does not: picking another one closes the session then and there,
- * because "switch team" with no way to switch is not a feature. The hint says
+ * because "switch team" with no way to switch is not a feature. The sheet says
  * so before you press it, and `useConversation` closes it again as a backstop
  * if anything drives the hook past this screen.
  */
 export function Conversation() {
   const { colors } = useTheme();
+  const router = useRouter();
   const [mode, setMode] = useState<ConversationMode>('session');
   const [profile, setProfile] = useState<RunProfile | null>(null);
   const [team, setTeam] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [teamSheet, setTeamSheet] = useState(false);
+  const [profileSheet, setProfileSheet] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const { teams } = useTeams();
+  const { teams, agents, isLoading: rosterLoading, error: rosterError } = useTeams();
   const conversation = useConversation({ mode, profile, team });
   const { entries, session, isSending } = conversation;
   const locked = session !== null;
   const tooLong = promptTooLong(draft);
+
+  const always = useMemo(() => (agents ?? []).filter((agent) => !agent.team), [agents]);
+  const members = useMemo(() => teams.find((entry) => entry.name === team)?.agents ?? [], [teams, team]);
+  const running = members.filter((agent) => agent.status === 'running').length;
 
   /**
    * Picking a team while a session is open ends that session: its team was
@@ -72,6 +98,14 @@ export function Conversation() {
       setTeam(next);
     },
     [team, session, conversation],
+  );
+
+  const openAgent = useCallback(
+    (id: string) => {
+      setTeamSheet(false);
+      router.push(`/agent/${encodeURIComponent(id)}`);
+    },
+    [router],
   );
 
   // The reply lands all at once and can be long: keep the newest line in view.
@@ -90,6 +124,32 @@ export function Conversation() {
       onError: () => setDraft((current) => (current.length > 0 ? current : prompt)),
     });
   }, [draft, isSending, conversation]);
+
+  const teamButton = (
+    <Pressable
+      testID="team-button"
+      accessibilityRole="button"
+      accessibilityLabel={
+        team ? `Team ${team}, ${members.length} worker${members.length === 1 ? '' : 's'}. Change team` : 'Solo. Change team'
+      }
+      onPress={() => setTeamSheet(true)}
+      style={[styles.control, { borderColor: team ? colors.accent : colors.border, backgroundColor: colors.background }]}
+    >
+      <Ionicons
+        name={team ? 'people-outline' : 'person-outline'}
+        size={14}
+        color={team ? colors.accent : colors.textMuted}
+      />
+      <Text style={[styles.controlLabel, { color: team ? colors.accent : colors.text }]}>{team ?? 'Solo'}</Text>
+      <Text testID="team-button-meta" style={[styles.controlMeta, { color: colors.textMuted }]}>
+        {team ? `${members.length}w` : `${always.length} always`}
+      </Text>
+      {running > 0 ? (
+        <View testID="team-button-running" style={[styles.runningDot, { backgroundColor: colors.success }]} />
+      ) : null}
+      <Ionicons name="chevron-down" size={13} color={colors.textMuted} />
+    </Pressable>
+  );
 
   return (
     <Screen>
@@ -119,133 +179,72 @@ export function Conversation() {
             ) : null}
           </View>
 
-          <View style={styles.segments}>
-            {MODES.map(({ mode: value, label }) => {
-              const active = mode === value;
-              return (
-                <Pressable
-                  key={value}
-                  testID={`mode-${value}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${label} mode`}
-                  accessibilityState={{ selected: active, disabled: locked }}
-                  disabled={locked}
-                  onPress={() => setMode(value)}
-                  style={[
-                    styles.segment,
-                    {
-                      borderColor: active ? colors.accent : colors.border,
-                      backgroundColor: active ? `${colors.accent}1A` : colors.background,
-                      opacity: locked && !active ? 0.4 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.segmentLabel, { color: active ? colors.accent : colors.text }]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.segments}>
-            <Pressable
-              testID="team-solo"
-              accessibilityRole="button"
-              accessibilityLabel="Run as the solo agent"
-              accessibilityState={{ selected: team === null }}
-              onPress={() => chooseTeam(null)}
-              style={[
-                styles.segment,
-                {
-                  borderColor: team === null ? colors.accent : colors.border,
-                  backgroundColor: team === null ? `${colors.accent}1A` : colors.background,
-                },
-              ]}
-            >
-              <Ionicons name="person-outline" size={13} color={team === null ? colors.accent : colors.text} />
-              <Text style={[styles.segmentLabel, { color: team === null ? colors.accent : colors.text }]}>Solo</Text>
-            </Pressable>
-
-            {teams.map(({ name, agents }) => {
-              const active = team === name;
-              return (
-                <Pressable
-                  key={name}
-                  testID={`team-${name}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Run as the ${name} team, ${agents.length} worker${agents.length === 1 ? '' : 's'}`}
-                  accessibilityState={{ selected: active }}
-                  onPress={() => chooseTeam(name)}
-                  style={[
-                    styles.segment,
-                    {
-                      borderColor: active ? colors.accent : colors.border,
-                      backgroundColor: active ? `${colors.accent}1A` : colors.background,
-                    },
-                  ]}
-                >
-                  <Ionicons name="people-outline" size={13} color={active ? colors.accent : colors.text} />
-                  <Text style={[styles.segmentLabel, { color: active ? colors.accent : colors.text }]}>{name}</Text>
-                  <Text style={[styles.segmentCount, { color: colors.textMuted }]}>{agents.length}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.segments}>
-            {RUN_PROFILES.map((value) => {
-              const active = profile === value;
-              return (
-                <Pressable
-                  key={value}
-                  testID={`profile-${value}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Profile ${value}`}
-                  accessibilityState={{ selected: active, disabled: locked }}
-                  disabled={locked}
-                  onPress={() => setProfile(active ? null : value)}
-                  style={[
-                    styles.segment,
-                    {
-                      borderColor: active ? colors.accent : colors.border,
-                      backgroundColor: active ? `${colors.accent}1A` : colors.background,
-                      opacity: locked ? 0.5 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.segmentLabel, { color: active ? colors.accent : colors.text }]}>{value}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.hint, { color: colors.textMuted }]}>
-            {locked
-              ? 'Profile is fixed for the life of this session. Picking another team closes it and starts a new one.'
-              : teams.length === 0
-                ? `${MODES.find((entry) => entry.mode === mode)?.hint ?? ''} No teams on this server — the roster names none.`
-                : (MODES.find((entry) => entry.mode === mode)?.hint ?? '')}
-          </Text>
-
           {session ? (
-            <View style={styles.headerActions}>
+            /* Everything on the bar is fixed for the life of this session, so
+               it collapses to a line that states it, plus the two things still
+               worth a press: leaving, and switching team (which ends it). */
+            <View testID="session-bar" style={styles.controls}>
+              <Text testID="session-summary" style={[styles.summary, { color: colors.textMuted }]}>
+                Session · {profile ?? 'server default'}
+              </Text>
+              {teamButton}
               <Pressable
                 testID="close-session"
                 accessibilityRole="button"
                 accessibilityLabel="Close session"
                 disabled={conversation.isClosing}
                 onPress={() => conversation.close()}
+                style={[styles.control, { borderColor: colors.border, backgroundColor: colors.background }]}
               >
-                <Text style={[styles.link, { color: colors.accent }]}>
-                  {conversation.isClosing ? 'Closing…' : 'Close session'}
+                <Ionicons name="stop-circle-outline" size={14} color={colors.danger} />
+                <Text style={[styles.controlLabel, { color: colors.danger }]}>
+                  {conversation.isClosing ? 'Closing…' : 'Close'}
                 </Text>
               </Pressable>
-              {session.expires_at ? (
-                <Text testID="session-expiry" style={[styles.hint, { color: colors.textMuted }]}>
-                  reaped after {new Date(session.expires_at).toLocaleTimeString()}
-                </Text>
-              ) : null}
             </View>
-          ) : null}
+          ) : (
+            <View testID="control-bar" style={styles.controls}>
+              <SegmentedControl
+                testIDPrefix="mode"
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'session', label: 'Session', accessibilityLabel: 'Session mode' },
+                  { value: 'run', label: 'One-shot', accessibilityLabel: 'One-shot mode' },
+                ]}
+              />
+              {teamButton}
+              <Pressable
+                testID="profile-button"
+                accessibilityRole="button"
+                accessibilityLabel={profile ? `Profile ${profile}. Change profile` : 'Server default profile. Change profile'}
+                onPress={() => setProfileSheet(true)}
+                style={[
+                  styles.control,
+                  { borderColor: profile ? colors.accent : colors.border, backgroundColor: colors.background },
+                ]}
+              >
+                <Ionicons name="options-outline" size={14} color={profile ? colors.accent : colors.textMuted} />
+                <Text style={[styles.controlLabel, { color: profile ? colors.accent : colors.text }]}>
+                  {profile ?? 'default'}
+                </Text>
+                <Ionicons name="chevron-down" size={13} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          )}
+
+          <View style={styles.hintRow}>
+            <Text style={[styles.hint, { color: colors.textMuted }]}>
+              {locked
+                ? 'Profile is fixed for the life of this session. Picking another team closes it and starts a new one.'
+                : MODE_HINT[mode]}
+            </Text>
+            {session?.expires_at ? (
+              <Text testID="session-expiry" style={[styles.hint, { color: colors.textMuted }]}>
+                Reaped after {new Date(session.expires_at).toLocaleTimeString()}.
+              </Text>
+            ) : null}
+          </View>
 
           {conversation.closeError ? (
             <Text testID="close-error" style={[styles.headerError, { color: colors.danger }]}>
@@ -300,6 +299,27 @@ export function Conversation() {
           placeholder={mode === 'session' ? 'Send the next turn…' : 'Describe one piece of work…'}
         />
       </KeyboardAvoidingView>
+
+      <TeamSheet
+        visible={teamSheet}
+        onClose={() => setTeamSheet(false)}
+        teams={teams}
+        always={always}
+        selected={team}
+        onSelect={chooseTeam}
+        onOpenAgent={(agent) => openAgent(agent.id)}
+        sessionOpen={locked}
+        isLoading={rosterLoading}
+        error={rosterError}
+      />
+
+      <ProfileSheet
+        visible={profileSheet}
+        onClose={() => setProfileSheet(false)}
+        selected={profile}
+        onSelect={setProfile}
+        locked={locked}
+      />
     </Screen>
   );
 }
@@ -316,22 +336,23 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: { fontSize: 20, fontWeight: '700' },
   subtitle: { fontSize: 12, fontFamily: 'monospace' },
-  segments: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  segment: {
+  controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  control: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs + 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: spacing.xs + 3,
     borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  segmentLabel: { fontSize: 13, fontWeight: '600' },
-  segmentCount: { fontSize: 11, fontFamily: 'monospace' },
+  controlLabel: { fontSize: 13, fontWeight: '600' },
+  controlMeta: { fontSize: 11, fontFamily: 'monospace' },
+  runningDot: { width: 6, height: 6, borderRadius: radius.pill },
+  summary: { fontSize: 12, fontFamily: 'monospace' },
+  hintRow: { gap: 2 },
   hint: { fontSize: 12, lineHeight: 17 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headerError: { fontSize: 12 },
-  link: { fontSize: 13, fontWeight: '600' },
   thread: { padding: spacing.lg, paddingBottom: spacing.xl, flexGrow: 1 },
   empty: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: spacing.xxl, paddingHorizontal: spacing.lg },
   awaiting: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },

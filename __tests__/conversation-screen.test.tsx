@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { requestLog } from '@/api/log';
 import { Conversation } from '@/screens/Conversation';
 import { agentInfo, messageResponse, runResponse, sessionInfo } from '@/test-utils/fixtures';
@@ -26,10 +27,25 @@ const ROSTER = {
   agents: [
     agentInfo({ id: 'researcher', name: 'researcher' }),
     agentInfo({ id: 'planner', name: 'planner', availability: 'team', team: 'engineering' }),
+    agentInfo({
+      id: 'builder',
+      name: 'builder',
+      status: 'running',
+      description: 'Writes the code the planner scoped.',
+      availability: 'team',
+      team: 'engineering',
+    }),
     agentInfo({ id: 'scribe', name: 'scribe', availability: 'team', team: 'docs' }),
   ],
-  count: 3,
+  count: 4,
 };
+
+/** The team picker lives behind a button now — every team test opens it first. */
+async function openTeamSheet() {
+  fireEvent.press(screen.getByTestId('team-button'));
+  // The sheet is built from the roster query, so wait for that, not the sheet.
+  await waitFor(() => expect(screen.getByTestId('team-engineering')).toBeTruthy());
+}
 
 const sessionApi =
   (turn: () => Response = () => fakeResponse({ body: messageResponse() })): Handler =>
@@ -77,32 +93,96 @@ describe('Conversation screen', () => {
     expect(screen.getByTestId('session-status')).toHaveTextContent('idle');
   });
 
-  it('locks profile and mode once a session exists, because the server fixed them', async () => {
+  it('collapses the control bar once a session exists, because the server fixed those options', async () => {
     stub(sessionApi());
     renderWithQuery(<Conversation />);
 
+    expect(screen.getByTestId('control-bar')).toBeTruthy();
+
     type('go');
 
-    await waitFor(() => expect(screen.getByTestId('profile-dev')).toBeDisabled());
-    expect(screen.getByTestId('mode-run')).toBeDisabled();
+    // Mode and profile are gone rather than merely disabled: neither can change
+    // while the session lives, and the transcript wants the room.
+    await waitFor(() => expect(screen.getByTestId('session-bar')).toBeTruthy());
+    expect(screen.queryByTestId('control-bar')).toBeNull();
+    expect(screen.queryByTestId('profile-button')).toBeNull();
+    expect(screen.queryByTestId('mode-run')).toBeNull();
+    expect(screen.getByTestId('session-summary')).toHaveTextContent(/server default/);
+  });
+
+  it('keeps the chosen profile on the summary line while the session holds it', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    fireEvent.press(screen.getByTestId('profile-button'));
+    await waitFor(() => expect(screen.getByTestId('profile-sheet')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('profile-sandboxed'));
+
+    // Picking closes the sheet, and the button says what is set.
+    await waitFor(() => expect(screen.getByTestId('profile-button')).toHaveTextContent(/sandboxed/));
+
+    type('go');
+
+    await waitFor(() => expect(screen.getByTestId('session-summary')).toHaveTextContent(/sandboxed/));
   });
 
   it('offers every team the roster names, plus solo', async () => {
     stub(sessionApi());
     renderWithQuery(<Conversation />);
 
-    await waitFor(() => expect(screen.getByTestId('team-engineering')).toBeTruthy());
+    await openTeamSheet();
+
+    expect(screen.getByTestId('team-engineering')).toBeTruthy();
     expect(screen.getByTestId('team-docs')).toBeTruthy();
     expect(screen.getByTestId('team-solo')).toBeTruthy();
     // `researcher` is an `always` agent and names no team, so it is not one.
     expect(screen.queryByTestId('team-researcher')).toBeNull();
   });
 
+  it('shows who is on a team, not just how many, and how many are running', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await openTeamSheet();
+
+    expect(screen.getByTestId('team-meta-engineering')).toHaveTextContent(/2 workers · 1 running now/);
+    expect(screen.getByTestId('team-member-planner')).toBeTruthy();
+    expect(screen.getByTestId('team-member-builder')).toHaveTextContent(/Writes the code the planner scoped\./);
+    expect(screen.getByTestId('team-member-meta-builder')).toHaveTextContent(/sonnet · 2 tools · 3 invocations/);
+    // The `always` agents are listed apart: they come along whichever team runs.
+    expect(screen.getByTestId('team-sheet-always')).toBeTruthy();
+    expect(screen.getByTestId('team-member-researcher')).toBeTruthy();
+  });
+
+  it('opens a worker from the sheet instead of making you find it on the Agents tab', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await openTeamSheet();
+    fireEvent.press(screen.getByTestId('team-member-builder'));
+
+    expect(router.push).toHaveBeenCalledWith('/agent/builder');
+    // Navigating dismisses the sheet — coming back should not land behind it.
+    await waitFor(() => expect(screen.queryByTestId('team-sheet')).toBeNull());
+  });
+
+  it('summarises the picked team on the button, so the sheet is not the only place to look', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    await openTeamSheet();
+    fireEvent.press(screen.getByTestId('team-engineering'));
+
+    await waitFor(() => expect(screen.getByTestId('team-button')).toHaveTextContent(/engineering/));
+    expect(screen.getByTestId('team-button-meta')).toHaveTextContent(/2w/);
+    expect(screen.getByTestId('team-button-running')).toBeTruthy();
+  });
+
   it('opens the session as the team you picked', async () => {
     const fetchMock = stub(sessionApi());
     renderWithQuery(<Conversation />);
 
-    await waitFor(() => expect(screen.getByTestId('team-engineering')).toBeTruthy());
+    await openTeamSheet();
     fireEvent.press(screen.getByTestId('team-engineering'));
     type('go');
 
@@ -116,10 +196,14 @@ describe('Conversation screen', () => {
     const fetchMock = stub(sessionApi());
     renderWithQuery(<Conversation />);
 
-    await waitFor(() => expect(screen.getByTestId('team-docs')).toBeTruthy());
+    await openTeamSheet();
+    fireEvent.press(screen.getByTestId('team-sheet-close'));
     type('go');
     await waitFor(() => expect(screen.getByTestId('session-status')).toBeTruthy());
 
+    await openTeamSheet();
+    // The sheet warns before you press, because this is a destructive pick.
+    expect(screen.getByTestId('team-sheet-warning')).toBeTruthy();
     fireEvent.press(screen.getByTestId('team-docs'));
 
     await waitFor(() =>
@@ -171,15 +255,33 @@ describe('Conversation screen', () => {
     renderWithQuery(<Conversation />);
 
     type('go');
-    await waitFor(() => expect(screen.getByTestId('close-session')).toBeTruthy());
+    // Wait for the turn to land, not just for the button: closing mid-turn is a
+    // different scenario, and the one below covers it.
+    await waitFor(() => expect(screen.getByText('Four leads, ranked.')).toBeTruthy());
 
     fireEvent.press(screen.getByTestId('close-session'));
 
-    await waitFor(() => expect(screen.queryByTestId('close-session')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('close-session')).toBeNull(), { timeout: 3000 });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/v1/sessions/sess_1'),
       expect.objectContaining({ method: 'DELETE' }),
     );
+  });
+
+  it('stays closed when the turn that was still in flight comes back', async () => {
+    stub(sessionApi());
+    renderWithQuery(<Conversation />);
+
+    type('go');
+    // The button appears as soon as the session opens — the turn is still in
+    // flight behind it. Its reply must not hand the closed handle back.
+    await waitFor(() => expect(screen.getByTestId('close-session')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('close-session'));
+
+    await waitFor(() => expect(screen.getByText('Four leads, ranked.')).toBeTruthy());
+    // The DELETE and the turn are in flight together; either can land first.
+    await waitFor(() => expect(screen.queryByTestId('session-status')).toBeNull(), { timeout: 3000 });
+    expect(screen.queryByTestId('close-session')).toBeNull();
   });
 
   it('refuses an over-long prompt here rather than spending a 422 to find out', () => {

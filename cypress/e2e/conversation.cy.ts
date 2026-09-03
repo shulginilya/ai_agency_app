@@ -33,22 +33,36 @@ describe('Conversation', () => {
   });
 
   it('locks profile once the session is open', () => {
+    cy.byTestId('profile-button').click();
     cy.byTestId('profile-eval').click();
     cy.sendPrompt('go');
 
     cy.byTestId('chat-thread').should('contain.text', 'profile eval');
-    cy.byTestId('profile-eval').should('have.attr', 'aria-disabled', 'true');
+    // The whole control bar goes once the session owns those options — there is
+    // no profile button left to disable.
+    cy.byTestId('profile-button').should('not.exist');
+    cy.byTestId('session-summary').should('contain.text', 'eval');
+  });
+
+  it('shows a team\'s workers in the picker, not just how many there are', () => {
+    cy.byTestId('team-button').click();
+    cy.byTestId('team-meta-engineering').should('contain.text', 'workers');
+    cy.byTestId('team-member-reviewer').should('exist');
+    cy.byTestId('team-sheet-always').should('exist');
   });
 
   it('runs as the team you pick, and switching teams ends the session', () => {
     // Team is fixed at open time — `MessageRequest` forbids it — so the only
     // honest way to switch is to close and open another.
+    cy.byTestId('team-button').click();
     cy.byTestId('team-engineering').click();
     cy.sendPrompt('go');
 
     cy.byTestId('chat-thread').should('contain.text', 'profile dev · engineering');
     cy.byTestId('chat-thread').should('contain.text', 'reviewer');
 
+    cy.byTestId('team-button').click();
+    cy.byTestId('team-sheet-warning').should('exist');
     cy.byTestId('team-docs').click();
     cy.byTestId('chat-thread').should('contain.text', 'Session closed.');
     cy.byTestId('close-session').should('not.exist');
